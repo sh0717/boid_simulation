@@ -1,4 +1,4 @@
-import { chromium } from 'playwright';
+import { launchBrowser } from './launch-browser.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -13,7 +13,7 @@ import { checkBoundaryControls } from './boundary-controls.mjs';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const artifacts = path.join(root, 'artifacts');
 await mkdir(artifacts, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await launchBrowser();
 const errors = [],
   requests = [],
   measurements = [];

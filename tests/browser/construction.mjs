@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
-import { chromium } from 'playwright';
+import { launchBrowser } from './launch-browser.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const markup = (await readFile(new URL('../../index.html', import.meta.url), 'utf8'))
@@ -16,7 +16,7 @@ const bundle = await build({
   format: 'iife',
   target: 'chrome110',
 });
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await launchBrowser();
 try {
   const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
   const errors = [];

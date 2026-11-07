@@ -4,13 +4,10 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { launchBrowser } from './launch-browser.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
 const config = createRequire(import.meta.url)('../../desktop/config.cjs');
-const { chromium } = await import(
-  pkg.devDependencies.playwright ? 'playwright' : '@playwright/test'
-);
 const types = {
   '.html': 'text/html',
   '.css': 'text/css',
@@ -43,7 +40,7 @@ const errors = [],
   checks = [];
 let browser;
 try {
-  browser = await chromium.launch({ channel: 'chrome', headless: true });
+  browser = await launchBrowser();
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   await context.route('**/*', async (route) => {
     const url = route.request().url();

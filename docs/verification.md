@@ -29,6 +29,10 @@ npm.cmd run verify
 검사 도중 실행 소스나 배포 파일이 바뀌면 실패합니다. 로그와 결과 JSON은 로컬 `artifacts/`에 생성됩니다.
 GitHub Actions의 `Build and test`도 같은 명령을 실행합니다.
 
+`CI=true` 환경의 브라우저 검사는 [Chromium의 SwiftShader 설정](https://chromium.googlesource.com/chromium/src/+/main/docs/gpu/swiftshader.md)을 사용합니다.
+호스트 GPU 드라이버에 의존하지 않고 WebGL 기능을 검사하며, 이때의 프레임 수치는 GPU 성능 측정에 사용하지 않습니다.
+로컬 기본 실행은 설치된 Chrome의 기본 렌더러를 사용합니다.
+
 | 검사 | 명령 | 확인하는 동작 |
 | --- | --- | --- |
 | 단위·수치 회귀 | `npm.cmd test` | 실제 Wasm, 이웃 판정, 시드 재현, 잘못된 입력, 자원 수명 |

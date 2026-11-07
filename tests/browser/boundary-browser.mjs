@@ -1,11 +1,11 @@
 // Focused UI regression after boundary presentation changes; build the web bundle first.
-import { chromium } from 'playwright';
+import { launchBrowser } from './launch-browser.mjs';
 import { fileURLToPath } from 'node:url';
 import { writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { checkBoundaryControls } from './boundary-controls.mjs';
 
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await launchBrowser();
 const errors = [];
 try {
   for (const mobile of [false, true]) {

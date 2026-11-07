@@ -1,10 +1,10 @@
-import { chromium } from 'playwright';
+import { launchBrowser } from './launch-browser.mjs';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { BoidSimulation } from '../../src/simulation/boids.js';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await launchBrowser();
 try {
   const page = await browser.newPage({
     viewport: { width: 1440, height: 1000 },
