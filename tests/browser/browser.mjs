@@ -33,7 +33,14 @@ try {
   await page.goto(pathToFileURL(path.join(root, 'yoosh.html')).href);
   await page.locator('#viewport[data-ready=true]').waitFor();
   assert.equal(await page.locator('#viewport').getAttribute('data-backend'), 'cpp17-wasm');
-  await page.waitForFunction(() => Number(document.getElementById('viewport').dataset.time) > 5);
+  // 시뮬레이션 시간은 프레임당 진행량이 제한되므로 느린 CI 렌더링에서는 실제 시간보다 늦습니다.
+  await page.waitForFunction(
+    () => Number(document.getElementById('viewport').dataset.time) > 5,
+    null,
+    {
+      timeout: 120000,
+    },
+  );
   await page.screenshot({ path: path.join(artifacts, 'desktop.png') });
   measurements.push({
     phase: '320 agents, trails on',
@@ -174,6 +181,8 @@ try {
     () =>
       document.getElementById('viewport').dataset.count === '1200' &&
       Number(document.getElementById('viewport').dataset.time) > 4,
+    null,
+    { timeout: 120000 },
   );
   assert.equal(await page.locator('#viewport').getAttribute('data-geometries'), geometries);
   measurements.push({
@@ -318,6 +327,19 @@ try {
   );
   await writeFile(path.join(artifacts, 'browser-results.json'), JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result, null, 2));
+} catch (error) {
+  console.error('Browser errors:', errors);
+  for (const page of browser.contexts().flatMap((context) => context.pages())) {
+    const state = await page
+      .evaluate(() => {
+        const { ready, time, paused, fps, renderedFrames } =
+          document.getElementById('viewport')?.dataset || {};
+        return { ready, time, paused, fps, renderedFrames, hidden: document.hidden };
+      })
+      .catch(() => null);
+    console.error('Browser state:', state);
+  }
+  throw error;
 } finally {
   await browser.close();
 }
