@@ -1,4 +1,5 @@
-import { MAX_BOIDS, MAX_OBSTACLES, GRID_CELL_SIZE } from '../config.js';
+import { MAX_BOIDS, MAX_NEIGHBORS, MAX_OBSTACLES, MAX_GRID_CELLS } from '../config.js';
+import { createGridLayout } from './grid-layout.js';
 import { CORE_BASE64, CORE_METADATA } from './generated/core-binary.js';
 
 export { CORE_METADATA };
@@ -70,7 +71,6 @@ const OBSTACLE = Object.freeze({
 const BOUNDARY_MODES = Object.freeze(['hard', 'soft', 'hybrid']);
 const AXIS_COUNT = 3;
 const OBSTACLE_STRIDE = 8;
-const MAX_GRID_CELLS = 8000;
 // ABI v1 lengths are element counts, independent of the active bird/obstacle counts.
 const CONFIG_VALUE_COUNT = 23;
 const STATE_VALUE_COUNT = 10;
@@ -134,13 +134,17 @@ export function assertCoreCompatibility(core) {
   ) {
     throw new Error('C++ simulation ABI layout does not match its JavaScript adapter');
   }
+  if (typeof core.boids_set_max_neighbors !== 'function')
+    throw new Error('C++ simulation core does not support the neighbor limit');
+  if (typeof core.boids_get_worker_thread_count !== 'function')
+    throw new Error('C++ simulation core does not report its worker thread count');
 }
 let compiledCore;
 
 // Settings are validated by BoidSimulation. The bridge additionally owns the
 // storage-layout preconditions that must hold before any ABI slot is written.
 function validateConfigLayout(bounds, search, obstacleCount) {
-  const cellSize = search.cellSize ?? GRID_CELL_SIZE;
+  const cellSize = search.cellSize ?? createGridLayout(bounds.halfSize).cellSize;
   if (!Number.isFinite(cellSize) || cellSize <= 0)
     throw new RangeError('Search cell size must be finite and positive');
   let cells = 1;
@@ -255,6 +259,13 @@ export class BoidsCoreBridge {
   writeConfig(settings, bounds, search, kdTree, obstacleCount) {
     this.assertActive();
     const cellSize = validateConfigLayout(bounds, search, obstacleCount);
+    if (
+      !Number.isInteger(settings.maxNeighbors) ||
+      settings.maxNeighbors < 0 ||
+      settings.maxNeighbors > MAX_NEIGHBORS
+    )
+      throw new RangeError('Maximum neighbor count is outside its supported range');
+    this.core.boids_set_max_neighbors(settings.maxNeighbors);
     const config = this.buffers.configBuffer;
     config[CONFIG.count] = settings.count;
     config[CONFIG.cohesion] = settings.cohesion;
@@ -315,6 +326,7 @@ export class BoidsCoreBridge {
     metrics.alignment = state[STATE.alignment];
     metrics.outsideCount = state[STATE.outsideCount];
     metrics.maxExcursion = state[STATE.maxExcursion];
+    metrics.workerThreadCount = this.core.boids_get_worker_thread_count();
   }
 
   readInspectionCounts() {

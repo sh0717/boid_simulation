@@ -64,6 +64,13 @@ exports.runSmokeTest = async (window, output, diagnostics) => {
       'first diagnostic sample',
     );
     if ((await snapshot()).paused === 'true') await click('play-pause');
+    assert.equal((await snapshot()).workerThreadCount, '0');
+    assert.equal(await evaluate(() => document.getElementById('worker-count').textContent), '0');
+    assert.equal(
+      await evaluate(() => document.getElementById('thread-mode').textContent),
+      '단일 스레드',
+    );
+    report.checks.push('Worker telemetry reports zero simulation workers in the Wasm EXE');
     // Windows may throttle composition of an invisible native window to 1 FPS.
     // Require simulation progress without treating wall time as a performance measurement.
     await waitFor(
@@ -284,6 +291,49 @@ exports.runSmokeTest = async (window, output, diagnostics) => {
       '1200 agents',
     );
     report.largeFlock = await snapshot();
+    await click('play-pause');
+    await waitFor(
+      () => document.getElementById('viewport').dataset.paused === 'true',
+      'pause before 10000 agents',
+    );
+    for (const axis of ['width', 'height', 'depth']) await change(`world-${axis}`, '500');
+    await click('apply-world');
+    await waitFor(
+      () => JSON.parse(document.getElementById('viewport').dataset.bounds).width === 500,
+      '500-unit world',
+    );
+    await evaluate(() => {
+      const trails = document.getElementById('trails');
+      trails.checked = false;
+      trails.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await change('population-count', '10000');
+    await click('apply-population');
+    await waitFor(
+      () => document.getElementById('viewport').dataset.count === '10000',
+      '10000 agents',
+    );
+    await change('max-neighbors', '32');
+    await click('apply-max-neighbors');
+    assert.equal(await evaluate(() => document.getElementById('max-neighbors').value), '32');
+    await click('single-step');
+    await waitFor(
+      () => document.getElementById('viewport').dataset.time === '0.0167',
+      '10000-agent step',
+    );
+    await change('world-width', '450');
+    await click('apply-world');
+    await waitFor(
+      () => JSON.parse(document.getElementById('viewport').dataset.bounds).width === 450,
+      '10000-agent dynamic world resize',
+    );
+    const maximumFlock = await snapshot();
+    assert.equal(maximumFlock.count, '10000');
+    assert.equal(maximumFlock.time, '0.0167');
+    assert.equal(maximumFlock.paused, 'true');
+    report.checks.push(
+      '10000 agents, nearest-neighbor limit, fixed step and runtime world resize to 450-500 units',
+    );
     await click('restore');
     await waitFor(
       () =>

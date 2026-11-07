@@ -71,11 +71,15 @@
       <fieldset id="settings" disabled>
         <section class="control-section population-section">
           <div class="section-label"><h3>개체 수</h3><span class="number-value"><output id="count-value">320</output><small> BOIDS</small></span></div>
-          <div class="segmented" role="group" aria-label="개체 수 선택"><button type="button" data-count="160" aria-pressed="false">160</button><button type="button" data-count="320" aria-pressed="true">320</button><button type="button" data-count="640" aria-pressed="false">640</button><button type="button" data-count="1200" aria-pressed="false">1,200</button></div>
+          <div class="segmented" role="group" aria-label="개체 수 선택"><button type="button" data-count="160" aria-pressed="false">160</button><button type="button" data-count="320" aria-pressed="true">320</button><button type="button" data-count="640" aria-pressed="false">640</button><button type="button" data-count="1200" aria-pressed="false">1,200</button><button type="button" data-count="10000" aria-pressed="false">10,000</button></div>
+          <div class="number-row population-entry"><label for="population-count">직접 입력 · 1~10,000</label><input type="number" id="population-count" min="1" max="10000" step="1" value="320"><button type="button" id="apply-population">적용</button></div>
+          <p class="lab-note">맵 크기는 아래 환경에서 축별로 변경할 수 있습니다.</p>
         </section>
         <details class="lab-section" id="lab-section">
           <summary><span>인지 · 재현 실험</span><span class="section-code">EXPERIMENT +</span></summary>
           <div class="rule"><div class="rule-title"><label for="perception">인지 반경</label><output for="perception" id="perception-value">10 u</output></div><input id="perception" type="range" min="4" max="16" step="1" value="10"><p>주변을 얼마나 넓게 인식할지 조절합니다.</p></div>
+          <div class="number-row"><label for="max-neighbors">최대 이웃 수 · 0은 무제한</label><input type="number" id="max-neighbors" min="0" max="9999" step="1" value="0"><button type="button" id="apply-max-neighbors">적용</button></div>
+          <p class="lab-note">인지 반경 안에서 가까운 개체부터 선택합니다.</p>
           <div class="rule"><div class="rule-title"><label for="fieldOfView">시야각</label><output for="fieldOfView" id="fieldOfView-value">360°</output></div><input id="fieldOfView" type="range" min="60" max="360" step="15" value="360"><p>응집·정렬에 적용합니다. 근거리 분리는 전방위입니다.</p></div>
           <label class="toggle-row inspect-row" for="inspect"><span>개체 관찰</span><input type="checkbox" id="inspect" role="switch"><span class="switch" aria-hidden="true"></span></label>
           <div class="number-row"><label for="selected-boid">선택 개체</label><input type="number" id="selected-boid" min="1" max="320" step="1" value="1"><button type="button" id="next-boid" title="다음 개체 선택">다음 →</button></div>
@@ -95,10 +99,10 @@
         <section class="control-section environment-section">
           <div class="section-label"><h3>환경</h3><span class="section-code">ENVIRONMENT</span></div>
           <details class="actor-settings obstacle-settings world-settings" id="world-settings"><summary>맵 박스 크기 <span>MAP SIZE</span></summary>
-            <fieldset id="world-fields"><legend>전체 길이 · 각 축 20–200 u</legend><div class="obstacle-grid">
-              <label for="world-width">가로 X<input type="number" id="world-width" min="20" max="200" step="1" value="50"></label>
-              <label for="world-height">높이 Y<input type="number" id="world-height" min="20" max="200" step="1" value="50"></label>
-              <label for="world-depth">깊이 Z<input type="number" id="world-depth" min="20" max="200" step="1" value="50"></label>
+            <fieldset id="world-fields"><legend>전체 길이 · 각 축 20–500 u</legend><div class="obstacle-grid">
+              <label for="world-width">가로 X<input type="number" id="world-width" min="20" max="500" step="1" value="50"></label>
+              <label for="world-height">높이 Y<input type="number" id="world-height" min="20" max="500" step="1" value="50"></label>
+              <label for="world-depth">깊이 Z<input type="number" id="world-depth" min="20" max="500" step="1" value="50"></label>
             </div></fieldset>
             <button type="button" class="obstacle-apply" id="apply-world">맵 크기 적용</button>
             <p class="obstacle-feedback" id="world-feedback" role="status" aria-live="polite"></p>
@@ -168,7 +172,7 @@
   </main>
   <footer class="statusbar">
     <div class="status-brand"><span class="live-dot"></span><span id="engine-status">STARTING</span></div>
-    <div class="telemetry"><span><b id="fps">—</b> FPS</span><span><b id="step-ms">—</b> ms <small>SIM</small></span><span><b id="mean-speed">—</b> u/s</span><span>정렬도 <b id="order">—</b><i class="order-bar"><i id="order-fill"></i></i></span></div>
+    <div class="telemetry"><span><b id="fps">—</b> FPS</span><span><b id="step-ms">—</b> ms <small>SIM</small></span><span><b id="mean-speed">—</b> u/s</span><span>정렬도 <b id="order">—</b><i class="order-bar"><i id="order-fill"></i></i></span><span class="worker-status" title="최근 완료한 위치 갱신·보정에 참여한 워커 수입니다. 메인 스레드 1개는 제외합니다. 현재 웹·EXE의 Wasm 코어는 단일 스레드로 실행합니다.">워커 <b id="worker-count">—</b>개 · <span id="thread-mode">확인 중</span></span></div>
     <span class="status-version">BOIDS / VOL. 001</span>
   </footer>
   <dialog id="help-dialog">

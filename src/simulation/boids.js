@@ -1,6 +1,7 @@
-import { DEFAULTS, DEFAULT_SEED, GRID_CELL_SIZE, validateSettings } from '../config.js';
+import { DEFAULTS, DEFAULT_SEED, validateSettings } from '../config.js';
 import { ObstacleLayout } from './obstacles.js';
 import { createWorldBounds } from './world-bounds.js';
+import { createGridLayout } from './grid-layout.js';
 import { BoidsCoreBridge, CORE_METADATA } from './core-bridge.js';
 
 export { CORE_METADATA };
@@ -17,12 +18,12 @@ export function seededRandom(seed) {
 
 // Descriptors preserve the inspection API; actual searches run in C++.
 function gridDescriptor(bounds) {
-  const size = bounds.halfSize.map((value) => Math.ceil((value * 2) / GRID_CELL_SIZE));
+  const { cellSize, size, cellCount } = createGridLayout(bounds.halfSize);
   return {
     kind: 'grid',
-    cellSize: GRID_CELL_SIZE,
+    cellSize,
     size,
-    heads: { length: size[0] * size[1] * size[2] },
+    heads: { length: cellCount },
   };
 }
 
@@ -49,6 +50,7 @@ export class BoidSimulation {
       alignment: 0,
       outsideCount: 0,
       maxExcursion: 0,
+      workerThreadCount: 0,
     };
     this.reset();
   }

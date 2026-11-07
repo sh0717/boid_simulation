@@ -2,12 +2,13 @@
 #include "core/SimulationConstants.h"
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 
-namespace boids::detail
+namespace detail
 {
+	// 시뮬레이션의 판정 허용 오차이며 기계 엡실론과 다릅니다.
 	constexpr double Epsilon = 1e-8;
-	constexpr double Pi = 3.14159265358979323846;
-	constexpr double GoalPathPeriod = Pi * 2 / constants::GoalPeriodFrequency;
+	constexpr double GoalPathPeriod = std::numbers::pi * 2 / constants::GoalPeriodFrequency;
 
 	/** LowerBound 이하와 UpperBound 이상을 제한합니다. 경계 순서와 유한 입력은 호출자가 보장합니다. */
 	inline double Clamp(double Value, double LowerBound, double UpperBound)
@@ -20,4 +21,4 @@ namespace boids::detail
 	{
 		return (Value > 0) - (Value < 0);
 	}
-} // namespace boids::detail
+} // namespace detail

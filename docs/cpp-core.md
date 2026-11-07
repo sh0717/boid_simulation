@@ -58,6 +58,13 @@ npm run test:exe
 재사용합니다. 워커 상한은 3개이며 하드웨어 동시성에서 호출 스레드 하나를 제외한 수로 제한합니다.
 호출 스레드도 한 구간을 처리하므로 최대 4개 실행 스레드가 참여합니다. 동시성 정보가 없거나
 사용 가능한 워커가 없으면 직렬 실행합니다.
+
+화면 하단의 `워커 N개`는 `boids_get_worker_thread_count()`로 코어에서 읽습니다.
+최근 완료한 위치 적분·장애물·경계 보정 구간에 실제 참여한 워커 수이며 호출 스레드는 제외합니다.
+워커 풀의 전체 크기나 순간 CPU 점유 스레드 수를 뜻하지 않습니다. 작업 전·빈 작업·직렬 실행은
+0이며 일시정지 중에는 최근 값을 유지합니다. 현재 웹·Electron EXE는 Wasm이므로
+`워커 0개 · 단일 스레드`를 표시합니다. C ABI의 기존 설정·상태 슬롯과 메모리 계약은 유지합니다.
+
 개체 수가 2개 이상이고 워커를 사용할 수 있으면 기본 병렬 실행합니다. 이전의 256개 임계값은
 제거했습니다. 개체 0개는 작업 없이 반환하고 1개는 호출 스레드에서 실행합니다. 구간 수는
 `min(개체 수, 워커 수 + 1)`이며 이번 작업에 배정되지 않은 워커는 다시 대기합니다.
@@ -151,8 +158,9 @@ sequenceDiagram
 
 ## 메모리 계약
 
-- ABI v1의 타입·배열 순서는 유지했습니다. 위치·속도는 float32, 설정·시간·조향 계산은 float64, 이웃 개수/인덱스는 uint16입니다.
-- 내부 C ABI는 입력 검증을 완료한 호출자용입니다. dt는 (0,0.05]초, 활성 개체는 1~1,200개, 장애물은 최대 16개입니다.
+- ABI v1의 함수·selector·원소 타입 순서는 유지했습니다. 위치·속도는 float32, 설정·시간·조향 계산은 float64, 이웃 개수/인덱스는 uint16입니다.
+- 최대 개체 수는 10,000이며 버퍼 용량 변경은 `boids_abi_schema`에 반영됩니다. 기존 1,200개 용량을 기대하는 어댑터는 새 코어와 혼용할 수 없습니다.
+- 내부 C ABI는 입력 검증을 완료한 호출자용입니다. dt는 (0,0.05]초, 활성 개체는 1~10,000개, 장애물은 최대 16개입니다.
 - FBirdVectorBuffer는 private std::vector<float>를 생성 시 MaxBirdCount×AxisCount 크기로 초기화하고 복사·이동을 금지합니다. 이웃/inspection vector와 unique_ptr 검색 객체도 생성 시 할당합니다. WASM allocator는 emmalloc이며 초기 2 MiB·메모리 성장 금지를 유지합니다.
 - 위치·속도·ABI 진단 저장소는 생성 후 크기/주소를 고정합니다. domain은 const FBirdVectorBuffer&와 BirdIndex/EAxis로 접근하고 GetAbiData만 raw 포인터를 ABI에 대여합니다. CopyFrom은 전체 스냅샷을 기존 저장소에 복사합니다.
 - QueryCandidates는 검색 객체 소유 const std::vector<int>&를 반환합니다. const std::vector<int>&로 받아 복사를 피하고 다음 Rebuild/조회가 내용을 바꿀 수 있음을 지킵니다. 후보 scratch는 생성 시 reserve(MaxBirdCount)하며 예약 용량 내 clear/push_back/resize/iota만 수행하여 생산 스텝의 추가 할당을 막는 계약입니다. 하위 Grid/Tree 출력에 용량이 부족하면 할당될 수 있습니다.

@@ -13,9 +13,12 @@ namespace
 {
 	bool ExecutorCoverageAndReuse()
 	{
-		using namespace boids;
 		FBirdUpdateExecutor Executor;
-		const std::array<int, 13> Counts = {0, 1, 2, 3, 4, 17, 32, 255, 256, 257, 1200, 2, 1200};
+		if (Executor.GetLastExecutionWorkerCount() != 0)
+		{
+			return false;
+		}
+		const std::array<int, 15> Counts = {0, 1, 2, 3, 4, 17, 32, 255, 256, 257, 1200, 10000, 2, 1200, 10000};
 		std::array<std::set<std::thread::id>, Counts.size()> FirstTeams;
 		const unsigned int HardwareThreadCount = std::thread::hardware_concurrency();
 		const int ExpectedTeamLimit = HardwareThreadCount > 1 ? static_cast<int>(std::min(HardwareThreadCount, static_cast<unsigned int>(constants::MaximumBirdWorkerCount + 1))) : 1;
@@ -28,7 +31,7 @@ namespace
 				std::vector<std::thread::id> ThreadIds(constants::MaxBirdCount);
 				std::atomic<int> RangeCalls{0};
 				std::atomic<bool> bInvalidRange{false};
-				Executor.ExecuteBirdRangesAndWait(Count, [&](int FirstBirdIndex, int EndBirdIndexExclusive)
+				Executor.ExecuteBirdRangesAndWait(Count, [&RangeCalls, &bInvalidRange, &Visits, &ThreadIds, Count](int FirstBirdIndex, int EndBirdIndexExclusive)
 				{
 					RangeCalls.fetch_add(1);
 					if (FirstBirdIndex < 0 || FirstBirdIndex >= EndBirdIndexExclusive || EndBirdIndexExclusive > Count)
@@ -44,7 +47,8 @@ namespace
 						}
 					}
 				});
-				if (bInvalidRange.load())
+				const int ExpectedWorkerCount = std::max(0, std::min(Count, ExpectedTeamLimit) - 1);
+				if (bInvalidRange.load() || Executor.GetLastExecutionWorkerCount() != ExpectedWorkerCount)
 				{
 					return false;
 				}
@@ -85,18 +89,18 @@ namespace
 
 	bool ExplicitSerialWorkerLimit()
 	{
-		boids::FBirdUpdateExecutor SerialExecutor(0);
-		for (int Count : {0, 1, 2, 32, 1200})
+		FBirdUpdateExecutor SerialExecutor(0);
+		for (int Count : {0, 1, 2, 32, 1200, 10000})
 		{
 			int RangeCallCount = 0;
 			bool bExpectedCallerRange = true;
 			const std::thread::id CallerThreadId = std::this_thread::get_id();
-			SerialExecutor.ExecuteBirdRangesAndWait(Count, [&](int FirstBirdIndex, int EndBirdIndexExclusive)
+			SerialExecutor.ExecuteBirdRangesAndWait(Count, [&RangeCallCount, &bExpectedCallerRange, CallerThreadId, Count](int FirstBirdIndex, int EndBirdIndexExclusive)
 			{
 				++RangeCallCount;
 				bExpectedCallerRange = bExpectedCallerRange && std::this_thread::get_id() == CallerThreadId && FirstBirdIndex == 0 && EndBirdIndexExclusive == Count;
 			});
-			if (!bExpectedCallerRange || RangeCallCount != (Count == 0 ? 0 : 1))
+			if (!bExpectedCallerRange || RangeCallCount != (Count == 0 ? 0 : 1) || SerialExecutor.GetLastExecutionWorkerCount() != 0)
 			{
 				return false;
 			}
@@ -111,18 +115,18 @@ namespace
 		{
 			std::array<int, 1200> First{};
 			std::array<int, 1200> Second{};
-			std::thread FirstCaller([&]
+			std::thread FirstCaller([&First]
 			{
-				boids::FBirdUpdateExecutor Executor;
-				Executor.ExecuteBirdRangesAndWait(1200, [&](int Begin, int End)
+				FBirdUpdateExecutor Executor;
+				Executor.ExecuteBirdRangesAndWait(1200, [&First](int Begin, int End)
 				{
 					std::fill(First.begin() + Begin, First.begin() + End, 7);
 				});
 			});
-			std::thread SecondCaller([&]
+			std::thread SecondCaller([&Second]
 			{
-				boids::FBirdUpdateExecutor Executor;
-				Executor.ExecuteBirdRangesAndWait(1200, [&](int Begin, int End)
+				FBirdUpdateExecutor Executor;
+				Executor.ExecuteBirdRangesAndWait(1200, [&Second](int Begin, int End)
 				{
 					std::fill(Second.begin() + Begin, Second.begin() + End, 11);
 				});
@@ -145,9 +149,8 @@ namespace
 		return true;
 	}
 
-	bool SameBuffers(boids::FBirdFlock& First, boids::FBirdFlock& Second)
+	bool SameBuffers(FBirdFlock& First, FBirdFlock& Second)
 	{
-		using namespace boids;
 		const FBirdFlockBuffers A = First.GetAbiBuffers();
 		const FBirdFlockBuffers B = Second.GetAbiBuffers();
 		const std::size_t VectorBytes = constants::BirdVectorComponentCount * sizeof(float);
@@ -155,11 +158,11 @@ namespace
 		return std::memcmp(A.Positions, B.Positions, VectorBytes) == 0 && std::memcmp(A.PreviousPositions, B.PreviousPositions, VectorBytes) == 0 && std::memcmp(A.Velocities, B.Velocities, VectorBytes) == 0 && std::memcmp(A.NextVelocities, B.NextVelocities, VectorBytes) == 0 && std::memcmp(A.NeighborCounts, B.NeighborCounts, IndexBytes) == 0 && std::memcmp(A.InspectionNeighborIndices, B.InspectionNeighborIndices, IndexBytes) == 0 && std::memcmp(A.Inspection, B.Inspection, constants::InspectionValueCount * sizeof(double)) == 0;
 	}
 
-	void PlaceContactCases(boids::FBirdFlock& Flock, int Count)
+	void PlaceContactCases(FBirdFlock& Flock, int Count)
 	{
 		// 구 중심·상자 중심·월드 밖·경계 근처에 배치하여 실제 접촉 분기를 통과시킵니다.
 		const std::array<std::array<float, 3>, 4> Positions = {{{0, 0, 0}, {10, 0, 0}, {30, -30, 30}, {24.9f, 24.9f, -24.9f}}};
-		const boids::FBirdFlockBuffers Buffers = Flock.GetAbiBuffers();
+		const FBirdFlockBuffers Buffers = Flock.GetAbiBuffers();
 		for (int BirdIndex = 0; BirdIndex < Count; ++BirdIndex)
 		{
 			std::copy(Positions[BirdIndex % Positions.size()].begin(), Positions[BirdIndex % Positions.size()].end(), Buffers.Positions + BirdIndex * 3);
@@ -169,9 +172,8 @@ namespace
 		}
 	}
 
-	bool FlockScenario(int Count, boids::EBoundaryMode BoundaryMode, boids::ESearchMethod SearchMethod, bool bObstaclesEnabled)
+	bool FlockScenario(int Count, EBoundaryMode BoundaryMode, ESearchMethod SearchMethod, bool bObstaclesEnabled)
 	{
-		using namespace boids;
 		FSimulationConfig Config;
 		Config.RequestedBirdCount = Count;
 		Config.Bounds = {{25, 25, 25}};
@@ -221,6 +223,13 @@ namespace
 			}
 			Serial.CommitVelocitiesAndIntegratePositions(1.0 / 60, Context);
 			Parallel.CommitVelocitiesAndIntegratePositions(1.0 / 60, Context);
+			const unsigned int HardwareThreadCount = std::thread::hardware_concurrency();
+			const int AvailableWorkerCount = HardwareThreadCount > 1 ? static_cast<int>(std::min(HardwareThreadCount - 1, static_cast<unsigned int>(constants::MaximumBirdWorkerCount))) : 0;
+			const int ExpectedWorkerCount = std::max(0, std::min(Count - 1, AvailableWorkerCount));
+			if (Serial.GetLastUpdateWorkerCount() != 0 || Parallel.GetLastUpdateWorkerCount() != ExpectedWorkerCount)
+			{
+				return false;
+			}
 			const FBirdFlockBuffers Current = Parallel.GetAbiBuffers();
 			const float* ExpectedVelocity = Step % 2 == 0 ? Original.NextVelocities : Original.Velocities;
 			if (!SameBuffers(Serial, Parallel) || Current.Positions != Original.Positions || Current.PreviousPositions != Original.PreviousPositions || Current.Velocities != ExpectedVelocity)
@@ -254,7 +263,6 @@ int main()
 		std::cerr << "FAIL: worker coverage, completion, reuse, isolation or shutdown\n";
 		return 1;
 	}
-	using namespace boids;
 	int ScenarioCount = 0;
 	for (int Count : {0, 1, 2, 3, 32, 255, 256, 257, 1200})
 	{

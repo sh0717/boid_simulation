@@ -33,6 +33,9 @@ try {
   await page.goto(pathToFileURL(path.join(root, 'yoosh.html')).href);
   await page.locator('#viewport[data-ready=true]').waitFor();
   assert.equal(await page.locator('#viewport').getAttribute('data-backend'), 'cpp17-wasm');
+  await page.waitForFunction(() => document.getElementById('worker-count').textContent === '0');
+  assert.equal(await page.locator('#thread-mode').textContent(), '단일 스레드');
+  assert.equal(await page.locator('#viewport').getAttribute('data-worker-thread-count'), '0');
   // 시뮬레이션 시간은 프레임당 진행량이 제한되므로 느린 CI 렌더링에서는 실제 시간보다 늦습니다.
   await page.waitForFunction(
     () => Number(document.getElementById('viewport').dataset.time) > 5,
@@ -234,6 +237,11 @@ try {
   await mobile.goto(pathToFileURL(path.join(root, 'index.html')).href);
   await mobile.locator('#viewport[data-ready=true]').waitFor();
   await mobile.waitForFunction(() => document.getElementById('viewport').dataset.paused === 'true');
+  assert.equal(await mobile.locator('#worker-count').textContent(), '0');
+  assert.ok(await mobile.locator('.worker-status').isVisible());
+  assert.equal(await mobile.locator('#thread-mode').textContent(), '단일 스레드');
+  assert.ok(await mobile.locator('#mean-speed').isVisible());
+  assert.ok(await mobile.locator('#order').isVisible());
   assert.equal(
     await mobile.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     true,

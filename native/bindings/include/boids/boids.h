@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <limits>
 #if defined(__EMSCRIPTEN__)
 #include <emscripten/emscripten.h>
 #define BOIDS_API EMSCRIPTEN_KEEPALIVE
@@ -9,91 +10,89 @@
 
 // ABI v1: Wasm 인스턴스 하나가 고정 메모리의 시뮬레이션 하나를 소유합니다.
 // 위치·속도 저장은 float32, 규칙 계산·설정·시간은 float64입니다.
-namespace boids
+constexpr int Capacity = 10000;
+constexpr int MaxObstacles = 16;
+static_assert(Capacity <= static_cast<int>(std::numeric_limits<std::uint16_t>::max()) + 1, "Bird indices and neighbor counts must fit uint16_t");
+
+enum Config
 {
-	constexpr int Capacity = 1200;
-	constexpr int MaxObstacles = 16;
+	Count,
+	Cohesion,
+	Alignment,
+	Separation,
+	Perception,
+	FieldOfView,
+	GoalEnabled,
+	GoalSpeed,
+	GoalStrength,
+	PredatorEnabled,
+	PredatorSpeed,
+	PredatorRadius,
+	PredatorStrength,
+	ObstaclesEnabled,
+	BoundaryMode,
+	BoundaryMargin,
+	BoundaryStrength,
+	SearchType,
+	HalfX,
+	HalfY,
+	HalfZ,
+	CellSize,
+	ObstacleCount,
+	ConfigSize
+};
 
-	enum Config
-	{
-		Count,
-		Cohesion,
-		Alignment,
-		Separation,
-		Perception,
-		FieldOfView,
-		GoalEnabled,
-		GoalSpeed,
-		GoalStrength,
-		PredatorEnabled,
-		PredatorSpeed,
-		PredatorRadius,
-		PredatorStrength,
-		ObstaclesEnabled,
-		BoundaryMode,
-		BoundaryMargin,
-		BoundaryStrength,
-		SearchType,
-		HalfX,
-		HalfY,
-		HalfZ,
-		CellSize,
-		ObstacleCount,
-		ConfigSize
-	};
+enum State
+{
+	ActiveCount,
+	Time,
+	GoalTime,
+	PreviousGoalTime,
+	GoalAdvance,
+	NeighborChecks,
+	MeanSpeed,
+	Order,
+	OutsideCount,
+	MaxExcursion,
+	StateSize
+};
 
-	enum State
-	{
-		ActiveCount,
-		Time,
-		GoalTime,
-		PreviousGoalTime,
-		GoalAdvance,
-		NeighborChecks,
-		MeanSpeed,
-		Order,
-		OutsideCount,
-		MaxExcursion,
-		StateSize
-	};
+// Selector -> element type, capacity (active prefix only unless stated):
+// 0 config:f64[23], 1 state:f64[10], 2/3 position/previous:f32[10000*3],
+// 4/5 velocity/next:f32[10000*3], 6 visible counts:u16[10000],
+// 7 goal,8 predator,9 previous predator,10 predator velocity:f32[3],
+// 11 obstacles:f64[16*8], 12 inspection:f64[11],13 neighbor IDs:u16[10000].
+enum class ECoreBuffer : int
+{
+	Config = 0,
+	State = 1,
+	Positions = 2,
+	PreviousPositions = 3,
+	Velocities = 4,
+	NextVelocities = 5,
+	NeighborCounts = 6,
+	Goal = 7,
+	Predator = 8,
+	PreviousPredator = 9,
+	PredatorVelocity = 10,
+	Obstacles = 11,
+	Inspection = 12,
+	Neighbors = 13
+};
 
-	// Selector -> element type, capacity (active prefix only unless stated):
-	// 0 config:f64[23], 1 state:f64[10], 2/3 position/previous:f32[1200*3],
-	// 4/5 velocity/next:f32[1200*3], 6 visible counts:u16[1200],
-	// 7 goal,8 predator,9 previous predator,10 predator velocity:f32[3],
-	// 11 obstacles:f64[16*8], 12 inspection:f64[11],13 neighbor IDs:u16[1200].
-	enum class ECoreBuffer : int
-	{
-		Config = 0,
-		State = 1,
-		Positions = 2,
-		PreviousPositions = 3,
-		Velocities = 4,
-		NextVelocities = 5,
-		NeighborCounts = 6,
-		Goal = 7,
-		Predator = 8,
-		PreviousPredator = 9,
-		PredatorVelocity = 10,
-		Obstacles = 11,
-		Inspection = 12,
-		Neighbors = 13
-	};
-
-	// Config: booleans are exactly 0/1; boundary=0 hard/1 soft/2 hybrid;
-	// search=0 grid/1 kd-tree. Count is an integer 1..Capacity, obstacle count
-	// is 0..MaxObstacles. Half extents/cell size are positive and finite, and
-	// ceil(2*HalfX/CellSize)*ceil(2*HalfY/CellSize)*ceil(2*HalfZ/CellSize)<=8000.
-	// Other settings follow src/config.js SETTING_RANGES (FOV is degrees).
-	// Position/distance use scene units; time and dt use seconds; speed is units/s.
-	// Obstacles: type (0 sphere,1 box),x,y,z,radius,width,height,depth; dimensions
-	// are positive, finite and fit the world with the adapter's clearance policy.
-	// Inspection: neighborCount,closeCount,cohesion xyz,alignment xyz,separation xyz.
-	// Only the first neighborCount neighbor IDs are valid after boids_inspect().
-	// Output state slots are core-written; host may set GoalTime for phase seeking.
-	// reset writes all slots; step writes all except ActiveCount; snap writes
-	// PreviousGoalTime/GoalAdvance; measure writes MeanSpeed/Order/OutsideCount/MaxExcursion.
-} // namespace boids
+// Config: booleans are exactly 0/1; boundary=0 hard/1 soft/2 hybrid;
+// search=0 grid/1 kd-tree. Count is an integer 1..Capacity, obstacle count
+// is 0..MaxObstacles. Half extents/cell size are positive and finite, and
+// ceil(2*HalfX/CellSize)*ceil(2*HalfY/CellSize)*ceil(2*HalfZ/CellSize)<=8000.
+// Other settings follow src/config.js SETTING_RANGES (FOV is degrees).
+// Position/distance use scene units; time and dt use seconds; speed is units/s.
+// Obstacles: type (0 sphere,1 box),x,y,z,radius,width,height,depth; dimensions
+// are positive, finite and fit the world with the adapter's clearance policy.
+// Inspection: neighborCount,closeCount,cohesion xyz,alignment xyz,separation xyz.
+// Only the first neighborCount neighbor IDs are valid after boids_inspect().
+// Output state slots are core-written; host may set GoalTime for phase seeking.
+// reset writes all slots; step writes all except ActiveCount; snap writes
+// PreviousGoalTime/GoalAdvance; measure writes MeanSpeed/Order/OutsideCount/MaxExcursion.
 
 // ABI 경계: JS 어댑터가 설정 범위·배열 배치·dt를 검증한 뒤 호출합니다.
 // 반환 배열은 WASM 인스턴스가 소유하며 외부에서 해제하거나 크기를 바꾸지 않습니다.
@@ -115,6 +114,12 @@ extern "C"
 
 	// ABI 경계: selector의 연속 버퍼를 빌려줍니다. 잘못된 selector는 nullptr입니다.
 	BOIDS_API void* boids_buffer(int selector);
+
+	// ABI 경계: 검증된 0..Capacity-1 이웃 상한을 설정합니다. 0은 무제한이며 재시작해도 유지됩니다.
+	BOIDS_API void boids_set_max_neighbors(int max_neighbors);
+
+	// 최근 완료한 군집 구간 작업의 참여 워커 수입니다. 호출 스레드는 제외합니다. Wasm·직렬·작업 전은 0이며 갱신과 동시에 조회하지 않습니다.
+	BOIDS_API int boids_get_worker_thread_count();
 
 	// ABI 경계: 입력 설정과 seed로 활성 개체를 초기화합니다.
 	BOIDS_API void boids_reset(std::uint32_t seed);

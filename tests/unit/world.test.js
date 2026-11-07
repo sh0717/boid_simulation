@@ -58,7 +58,7 @@ test('world bounds validate full dimensions atomically and expose immutable half
   const bounds = createWorldBounds({ width: 21, height: 200, depth: 20 });
   assert.deepEqual(bounds.halfSize, [10.5, 100, 10]);
   assert.ok(Object.isFrozen(bounds) && Object.isFrozen(bounds.halfSize));
-  for (const value of [NaN, Infinity, -Infinity, '50', null, 0, -20, 19, 201, 30.5])
+  for (const value of [NaN, Infinity, -Infinity, '50', null, 0, -20, 19, 501, 30.5])
     assert.throws(() => createWorldBounds({ width: value }), RangeError);
   assert.throws(() => createWorldBounds({ x: 50 }), TypeError);
 });
@@ -201,6 +201,8 @@ test('minimum, maximum and thin maps preserve collision and boundary invariants 
     { width: 20, height: 20, depth: 20 },
     { width: 200, height: 200, depth: 200 },
     { width: 21, height: 200, depth: 30 },
+    { width: 500, height: 500, depth: 500 },
+    { width: 500, height: 20, depth: 300 },
   ])
     for (const searchType of ['grid', 'kd-tree']) {
       const simulation = new BoidSimulation(

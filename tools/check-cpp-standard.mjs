@@ -35,6 +35,9 @@ for (const file of files) {
     const line = code.slice(0, offset).split('\n').length;
     failures.push(`${relative}:${line}: ${message}`);
   };
+  for (const match of code.matchAll(/\[\s*(?:&|=)\s*(?:,|\])/g)) {
+    fail(match.index, 'lambda: capture used variables explicitly.');
+  }
   // Template parameters (class ObjectType>) are not class declarations.
   const declarations =
     /\benum\s+(?:(?:class|struct)\s+)?([A-Za-z_]\w*)|\b(?:class|struct)\s+([A-Za-z_]\w*)(?=\s*(?:final\b|[:{;<]))/g;

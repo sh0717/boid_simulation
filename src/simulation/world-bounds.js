@@ -1,4 +1,4 @@
-export const MAP_SIZE_RANGE = Object.freeze([20, 200]);
+export const MAP_SIZE_RANGE = Object.freeze([20, 500]);
 export const DEFAULT_MAP_SIZE = Object.freeze({ width: 50, height: 50, depth: 50 });
 
 /** Immutable origin-centered box. Validate a complete resize before committing any state. */

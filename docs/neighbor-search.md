@@ -4,7 +4,7 @@
 
 Boids의 규칙은 가까운 이웃만 사용하지만, 그 이웃을 찾는 과정에도 비용이 듭니다.
 이 프로젝트는 **후보를 찾는 자료구조**와 **정확한 거리·시야각 판정**을 분리합니다.
-2026-11-04에 확인한 C++ 구현을 기준으로 알고리즘과 비용을 설명합니다.
+2026-11-07에 확인한 C++ 구현을 기준으로 알고리즘과 비용을 설명합니다.
 
 ## 1. 탐색기가 지키는 계약
 
@@ -13,6 +13,7 @@ Boids의 규칙은 가까운 이웃만 사용하지만, 그 이웃을 찾는 과
 → QueryCandidates(위치, 인지 반경)
 → 자신 제외
 → 정확한 거리 제곱 검사
+→ 최대 이웃 수가 설정된 경우 가까운 순으로 선택
 → 분리 누적
 → 시야각 검사
 → 응집·정렬 누적
@@ -38,6 +39,11 @@ Boids의 규칙은 가까운 이웃만 사용하지만, 그 이웃을 찾는 과
 넓게 후보를 반환해도 정확 필터를 통과한 이웃만 힘에 반영하면 됩니다.
 반대로 실제 이웃을 후보에서 누락하면 군집 동작이 달라집니다. 이 계약 때문에
 탐색 구조 교체가 군집 수식 변경으로 이어지지 않습니다.
+
+이웃 최대 수의 기본값 `0`은 제한 없음입니다. 양수를 설정하면 인지 반경 안의
+개체 중 가까운 순으로 선택하며, 거리가 같으면 개체 인덱스가 작은 쪽을 선택합니다.
+선택 후 분리·시야각·응집·정렬을 계산하므로 시야 밖 개체도 선택된 이웃에 포함될 수
+있습니다. 제한은 후보 탐색을 조기에 중단하지 않으므로 거리 검사 횟수를 제한하지 않습니다.
 
 ## 2. 전수 탐색: 비교 기준
 
@@ -75,20 +81,25 @@ $$
 \operatorname{index}(c_x,c_y,c_z)=c_x+n_x(c_y+n_yc_z)
 $$
 
+맵의 각 축 전체 길이는 20~500까지 실행 중 변경할 수 있습니다. 셀 폭은 최소 10이며
+[grid-layout.js](../src/simulation/grid-layout.js)가 셀 수의 곱이 8,000 이하인 가장 작은
+정수 셀 폭을 선택합니다. 예를 들어 200³ 이하는 기존 폭 10, 500³은 폭 25를 사용합니다.
+축별 크기가 다른 맵은 가장 긴 축만 기준으로 일률적으로 확대하지 않고 세 축의 셀 수를 함께 계산합니다.
+
 이 구현은 해시 테이블 대신 직접 주소 배열을 사용합니다. 셀마다 별도 컨테이너를
-할당하지 않고 `CellHeads[cell]`과 `NextBirdIndices[bird]`로 연결합니다.
+할당하지 않고 `FirstBirdIndexByCell[cell]`과 `NextBirdIndexByBird[bird]`로 연결합니다.
 
 ```text
-모든 활성 CellHeads를 -1로 초기화
+모든 활성 FirstBirdIndexByCell을 -1로 초기화
 for bird in [0, N):
     cell = 위치로 셀 인덱스 계산
-    NextBirdIndices[bird] = CellHeads[cell]
-    CellHeads[cell] = bird
+    NextBirdIndexByBird[bird] = FirstBirdIndexByCell[cell]
+    FirstBirdIndexByCell[cell] = bird
 ```
 
 같은 셀에 개체 0, 3, 7을 차례로 넣으면 `head → 7 → 3 → 0 → -1`입니다.
 셀 내부 순회는 삽입의 역순이고, 셀 순회는 Z → Y → X 중첩 루프입니다.
-구현은 [SpatialGrid::Rebuild](../native/src/simulation/SpatialGrid.cpp#L28)에 있습니다.
+구현은 [SpatialGrid::Rebuild](../native/src/simulation/SpatialGrid.cpp#L36)에 있습니다.
 
 ### 후보 셀과 거리 하한
 
@@ -96,7 +107,7 @@ for bird in [0, N):
 중심 셀에서 각 축으로 $k$칸까지, 최대 $(2k+1)^3$개 셀을 검사합니다.
 월드 끝에서는 범위를 잘라냅니다. 기본값 $R=h=10$일 때 최대 27개 셀입니다.
 인지 반경이 커지면 27개보다 많은 셀을 검사할 수 있습니다.
-축별 구간은 `GetQueryCellRange`가 양 끝을 포함하는 `FCellRange`로 반환합니다.
+축별 구간은 `CalculateQueryCellRange`가 양 끝을 포함하는 `FCellRange`로 반환합니다.
 이 헬퍼는 세 축의 동일한 범위 계산을 공유하며 Z → Y → X 조회 순서는 바꾸지 않습니다.
 
 각 셀의 영역과 조회점 사이의 축별 거리 하한 $\ell_x,\ell_y,\ell_z$를 구합니다.
@@ -107,7 +118,7 @@ $$
 
 $D^2_{\mathrm{cell}}\ge R^2$이면 그 셀에는 엄격한 반경 안의 이웃이 없으므로 건너뜁니다.
 나머지 셀의 개체는 모두 후보로 내보내고 정확한 개체 거리는 호출자가 검사합니다.
-구현은 [QueryCandidates](../native/src/simulation/SpatialGrid.cpp#L55)입니다.
+구현은 [QueryCandidates](../native/src/simulation/SpatialGrid.cpp#L60)입니다.
 
 기본 월드 `[-25,25]³`, $h=10$, 조회점 `(0,0,0)`, $R=10$의 예입니다.
 
@@ -127,7 +138,7 @@ Soft 모드에서는 개체가 월드 밖으로 이동할 수 있습니다. 셀 
 예를 들어 X 최댓값이 25일 때 X=30과 X=31의 개체는 마지막 셀에 저장되며,
 반경 10으로 서로를 찾을 수 있어야 합니다. 마지막 셀을 `[15,25]`에만 한정해
 거리 하한을 계산하면 바깥 조회점의 실제 이웃을 잘못 버릴 수 있습니다.
-이 계약은 [GetCellDistanceLowerBound](../native/src/simulation/SpatialGrid.cpp#L20)에 있습니다.
+이 계약은 [CalculateCellAxisDistanceLowerBound](../native/src/simulation/SpatialGrid.cpp#L27)에 있습니다.
 
 ### 누락을 방지하는 이유와 비용
 
@@ -144,7 +155,7 @@ Soft 모드에서는 개체가 월드 밖으로 이동할 수 있습니다. 셀 
 - 전체 탐색·군집 단계: $O(C+N+\sum_i(B_i+Q_i))$.
 - 밀집으로 대부분이 같은 근처 셀에 모이면 후보 처리 비용이 $O(N^2)$까지 커집니다.
 
-현재 배열 용량은 셀 8,000개·개체 1,200개이며, 일반화한 저장 공간은 $O(C+N)$입니다.
+현재 배열 용량은 셀 8,000개·개체 10,000개이며, 일반화한 저장 공간은 $O(C+N)$입니다.
 고정 반경·제한된 셀 밀도에서 빠르게 동작할 수 있지만 개체 수만으로 선형 시간을
 보장하지는 않습니다. 헤더는 [SpatialGrid.h](../native/src/simulation/SpatialGrid.h)입니다.
 
@@ -160,18 +171,23 @@ Build(first, last, depth):
     if first > last: return empty
     axis = [X, Y, Z][depth % 3]
     mid = floor((first + last) / 2)
-    SelectMedian(first, last, mid, axis)
+    PlaceMedianBirdInSlot(first, last, mid, axis)
     split[mid] = position[bird[mid]][axis]
     left[mid] = Build(first, mid - 1, depth + 1)
     right[mid] = Build(mid + 1, last, depth + 1)
     return mid
 ```
 
-`SelectMedian`은 매번 전체 정렬을 하는 대신 선택 대상이 있는 구간만 다시 분할합니다.
+`PlaceMedianBirdInSlot`은 매번 전체 정렬을 하는 대신 선택 대상이 있는 구간만 다시 분할합니다.
 현재 구간의 중앙 인덱스에 있는 개체를 pivot으로 사용합니다.
 포인터 노드를 개별 할당하지 않고 인덱스·자식·분할축·분할좌표 배열로 저장합니다.
-근거는 [SelectMedian](../native/src/simulation/KdTree.cpp#L39)과
-[BuildBranch](../native/src/simulation/KdTree.cpp#L59)입니다.
+각 배열의 같은 인덱스가 한 노드의 개체, 왼쪽·오른쪽 자식, 분할 축과 좌표를 나타냅니다.
+`BirdIndexByNode`는 노드 번호에서 개체 번호를 찾고 `LeftChildNodeIndexByNode`와
+`RightChildNodeIndexByNode`는 자식 노드 번호를 찾습니다. 자식이 없으면 -1입니다.
+분할 좌표는 재구축 시 저장하므로 조회는 원본 위치를 참조하지 않습니다.
+
+근거는 [PlaceMedianBirdInSlot](../native/src/simulation/KdTree.cpp#L38)과
+[BuildBalancedSubtree](../native/src/simulation/KdTree.cpp#L58)입니다.
 
 ### 분할면을 이용한 조회
 
@@ -193,7 +209,7 @@ Build(first, last, depth):
 
 고정 배열 스택으로 순회하며 왼쪽을 먼저 push하고 오른쪽을 나중에 push합니다.
 LIFO이므로 두 자식이 모두 있으면 오른쪽을 먼저 방문합니다.
-구현은 [KdTree::QueryCandidates](../native/src/simulation/KdTree.cpp#L89)입니다.
+구현은 [KdTree::QueryCandidates](../native/src/simulation/KdTree.cpp#L87)입니다.
 
 ### 누락을 방지하는 이유와 비용
 
@@ -211,7 +227,7 @@ LIFO이므로 두 자식이 모두 있으면 오른쪽을 먼저 방문합니다
 현재 pivot 선택에는 최악 선형 선택 알고리즘의 보장이 없으므로 분할이 반복해서
 불리해지는 입력에서 구축 비용은 $O(N^2)$까지 커질 수 있습니다.
 저장 공간은 $O(N)$이고, 구축 재귀·깊이 우선 조회의 스택은 균형 트리 깊이에 비례합니다.
-현재 조회 스택 용량 32는 최대 1,200개 노드의 트리 깊이에 충분합니다.
+현재 조회 스택 용량 32는 중앙값으로 구축한 최대 10,000개 노드의 트리 깊이에 충분합니다.
 
 ## 5. 같은 규칙을 적용하되 계산 순서를 이해합니다
 

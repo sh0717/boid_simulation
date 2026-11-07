@@ -12,6 +12,7 @@ export function publishDiagnostics(viewport, simulation, scene, positionBits, me
   viewport.dataset.geometries = scene.renderer.info.memory.geometries;
   viewport.dataset.textures = scene.renderer.info.memory.textures;
   viewport.dataset.neighborChecks = simulation.metrics.neighborChecks;
+  viewport.dataset.workerThreadCount = simulation.metrics.workerThreadCount;
   viewport.dataset.paused = String(paused);
   viewport.dataset.stepMs = stepMs.toFixed(3);
   viewport.dataset.fps = fps.toFixed(1);

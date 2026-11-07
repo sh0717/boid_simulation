@@ -11,7 +11,7 @@
 | 0–4분 | [boids.h](../native/bindings/include/boids/boids.h)의 `ECoreBuffer`, `boids_buffer`·`boids_step`; [Bindings.cpp](../native/bindings/Bindings.cpp) | C ABI 슬롯·자료형·활성 구간과 호출 전제, 실제 위임 대상 |
 | 4–9분 | [Simulation.cpp](../native/bindings/Simulation.cpp)의 `FSimulation::RefreshInputsFromAbi`, `Step` | 입력 스냅샷 → 목표·포식자 → 이웃 검색 → 군집 갱신 → 출력 발행 순서 |
 | 9–16분 | [BirdFlock.h](../native/src/simulation/BirdFlock.h)의 `FBirdFlockBuffers`, `FBirdFlock`; [BirdFlock.cpp](../native/src/simulation/BirdFlock.cpp)의 `CollectNeighborhood`, `IntegrateNextVelocities`, `CommitVelocitiesAndIntegratePositions` | 상태 소유·버퍼 대여·현재/다음 속도 분리, 분리 힘과 시야 필터 순서 |
-| 16–21분 | [NeighborSearch.cpp](../native/src/simulation/NeighborSearch.cpp)의 `QueryCandidates`; [SpatialGrid.cpp](../native/src/simulation/SpatialGrid.cpp)의 `GetCellCoordinate`, `GetCellDistanceLowerBound`; [KdTree.cpp](../native/src/simulation/KdTree.cpp)의 `QueryCandidates` | 후보와 실제 이웃의 차이, 후보 순서, Soft 경계 끝 셀과 탐색 가지치기 |
+| 16–21분 | [NeighborSearch.cpp](../native/src/simulation/NeighborSearch.cpp)의 `QueryCandidates`; [SpatialGrid.cpp](../native/src/simulation/SpatialGrid.cpp)의 `CalculateClampedCellCoordinate`, `CalculateCellAxisDistanceLowerBound`; [KdTree.cpp](../native/src/simulation/KdTree.cpp)의 `QueryCandidates` | 후보와 실제 이웃의 차이, 후보 순서, Soft 경계 끝 셀과 탐색 가지치기 |
 | 21–25분 | [BirdFlock.cpp](../native/src/simulation/BirdFlock.cpp)의 `ResolveObstacles`, `SelectBoundaryTangentAxis`; [Predator.cpp](../native/src/simulation/Predator.cpp)의 `LimitSpeedAndIntegratePosition` | 투영·반사·속도 제한의 적용 지점, 축 동률 우선순위와 float 저장 시점 |
 
 ## 처리 흐름과 데이터 소유

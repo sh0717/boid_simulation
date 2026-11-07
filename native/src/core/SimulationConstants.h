@@ -1,10 +1,10 @@
 #pragma once
 #include <boids/boids.h>
 
-namespace boids::constants
+namespace constants
 {
 	// 고정 용량과 ABI 버퍼 배치
-	constexpr int MaxBirdCount = boids::Capacity;
+	constexpr int MaxBirdCount = Capacity;
 	constexpr int AxisCount = 3;
 	constexpr int BirdVectorComponentCount = MaxBirdCount * AxisCount;
 	constexpr int ObstacleStride = 8;
@@ -85,4 +85,4 @@ namespace boids::constants
 
 	// uint32 난수를 [0, 1)로 변환하는 배율
 	constexpr double RandomOutputScale = 4294967296.0;
-} // namespace boids::constants
+} // namespace constants

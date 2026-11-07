@@ -11,7 +11,7 @@ test('the rebuilt native ABI matches every host slot, selector, element size and
   try {
     assert.equal(bridge.core.boids_abi_schema() >>> 0, ABI_SCHEMA_HASH);
     assertCoreCompatibility(bridge.core);
-    assert.equal(bridge.buffers.positions.length, 1200 * 3);
+    assert.equal(bridge.buffers.positions.length, 10000 * 3);
     assert.equal(bridge.buffers.obstacleBuffer.length, 16 * 8);
   } finally {
     bridge.dispose();
@@ -30,4 +30,21 @@ test('a matching version with missing or changed layout metadata is rejected', (
       /layout/,
     );
   }
+  assert.throws(
+    () =>
+      assertCoreCompatibility({
+        boids_abi_version: () => 1,
+        boids_abi_schema: () => ABI_SCHEMA_HASH,
+      }),
+    /neighbor limit/,
+  );
+  assert.throws(
+    () =>
+      assertCoreCompatibility({
+        boids_abi_version: () => 1,
+        boids_abi_schema: () => ABI_SCHEMA_HASH,
+        boids_set_max_neighbors() {},
+      }),
+    /worker thread count/,
+  );
 });

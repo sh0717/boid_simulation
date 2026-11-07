@@ -4,7 +4,7 @@
 
 ## 이름과 파일
 
-- 언리얼 소스 기반 [C++ 코딩 표준](cpp-coding-standard.md)을 적용합니다. 일반 class/struct는 F, 템플릿 타입은 T, enum class는 E 접두를 사용합니다. 함수·멤버·인자·지역 변수는 PascalCase, bool은 b, 출력 인자는 Out, 기존 값을 누적 수정하는 인자는 InOut 접두를 사용합니다. `namespace boids`와 기존 하위 namespace는 유지합니다.
+- 언리얼 소스 기반 [C++ 코딩 표준](cpp-coding-standard.md)을 적용합니다. 일반 class/struct는 F, 템플릿 타입은 T, enum class는 E 접두를 사용합니다. 함수·멤버·인자·지역 변수는 PascalCase, bool은 b, 출력 인자는 Out, 기존 값을 누적 수정하는 인자는 InOut 접두를 사용합니다. 주요 C++ 타입은 전역에 선언하고, 상수와 구현 보조 함수는 각각 `constants`, `detail` 네임스페이스에 둡니다.
 - 클래스 파일은 타입 접두를 제외한 PascalCase로 맞춥니다. FBirdFlock 선언은 BirdFlock.h, 모든 구현은 BirdFlock.cpp 한 파일에 둡니다. Axis/WorldBounds 등 값 타입과 SimulationConfig/SimulationState 클래스 파일도 같은 이름 규칙을 적용합니다.
 - 공개 C ABI 함수·원 Config/State enum·selector·배열 타입/길이·ABI v1은 유지합니다. 공개 `native/bindings/include/boids/boids.h`와 실행 진입점 `tests/native/DebugRunner.cpp`·테스트 파일명은 예외입니다.
 - include·CMake·core source/hash 목록·디버거·문서의 경로 대소문자를 실파일과 일치시킵니다. 과거 baseline/실험 snapshot을 개명하지 않습니다.
@@ -29,11 +29,11 @@ JS는 boids.js의 입력 검증·서비스와 core-bridge.js의 BoidsCoreBridge�
 
 ## 초기 할당과 고정 수명
 
-Bird의 위치·이전 위치·속도 A/B는 BirdVectorBuffer.h의 FBirdVectorBuffer로 소유합니다. 이 클래스는 private std::vector<float>를 기본 생성자에서 MaxBirdCount×AxisCount개의 0 원소로 초기화하며 복사·이동을 금지합니다. GetVector/SetVector/GetComponent/CopyFrom/GetBirdCapacity/GetAbiData로 접근을 제한합니다. 과거 std::array 별칭과 BirdBufferTypes.h는 사용하지 않으며 현재 FBirdVectorBuffer는 저장소를 캡슐화한 클래스입니다. 이웃 수·이웃 인덱스·inspection vector도 생성 시 기존 타입과 길이로 초기화합니다.
+Bird의 위치·이전 위치·속도 A/B는 BirdVectorBuffer.h의 FBirdVectorBuffer로 소유합니다. 이 클래스는 private std::vector<float>를 기본 생성자에서 MaxBirdCount×AxisCount개의 0 원소로 초기화하며 복사·이동을 금지합니다. GetVector/SetVector/GetComponent/CopyFrom/GetBirdCapacity/GetAbiData로 접근을 제한합니다. 과거 std::array 별칭과 BirdBufferTypes.h는 사용하지 않으며 현재 FBirdVectorBuffer는 저장소를 캡슐화한 클래스입니다. 이웃 수·이웃 인덱스·inspection vector도 생성 시 최대 개체 수에 맞춰 초기화합니다.
 
 Bird/Predator/Grid/Tree 도메인 입력은 const FBirdVectorBuffer&와 BirdIndex/EAxis를 사용합니다. flat 배치와 offset 산술은 버퍼 구현에 숨기고 GetAbiData의 raw 포인터는 ABI 연결에서만 대여합니다. 값 읽기/쓰기로 기존 double 계산·float 저장 지점을 바꾸지 않습니다. CopyFrom은 전체 스냅샷을 기존 저장소에 복사합니다.
 
-FBirdFlock은 FNeighborSearch를 unique_ptr로 단독 소유하고 make_unique로 생성 시 할당합니다. Grid/Tree 내부 공간 인덱스는 고정 std::array를 유지합니다. Tree의 SplitCoordinates는 Rebuild마다 활성 노드의 분할 좌표를 float로 저장하는 캐시이며 이후 조회에서 같은 값을 읽습니다. FNeighborSearch 후보 scratch는 std::vector<int>이며 생성 시 reserve(MaxBirdCount)를 보장합니다. FNeighborCandidates는 제거하고 QueryCandidates가 const std::vector<int>&를 반환합니다. 호출자는 const std::vector<int>&로 받아 복사를 피하며 다음 Rebuild/QueryCandidates가 내용을 덮어쓸 수 있음을 지킵니다.
+FBirdFlock은 FNeighborSearch를 unique_ptr로 단독 소유하고 make_unique로 생성 시 할당합니다. Grid/Tree 내부 공간 인덱스는 고정 std::array를 유지합니다. Tree의 SplitCoordinateByNode는 Rebuild마다 활성 노드의 분할 좌표를 float로 저장하는 캐시이며 이후 조회에서 같은 값을 읽습니다. FNeighborSearch 후보 scratch는 std::vector<int>이며 생성 시 reserve(MaxBirdCount)를 보장합니다. FNeighborCandidates는 제거하고 QueryCandidates가 const std::vector<int>&를 반환합니다. 호출자는 const std::vector<int>&로 받아 복사를 피하며 다음 Rebuild/QueryCandidates가 내용을 덮어쓸 수 있음을 지킵니다.
 
 Grid/Tree는 출력 vector를 clear/push_back하고 all-pairs는 Rebuild마다 활성 수로 resize한 뒤 iota로 채웁니다. 후보 scratch의 예약 용량 안에서 size를 바꾸는 것은 허용합니다. 하위 QueryCandidates에 용량이 부족한 vector를 넘기면 할당될 수 있으므로 production FNeighborSearch의 사전 reserve와 최대 후보 수 보장으로 생성 이후 추가 할당 0을 검증합니다.
 

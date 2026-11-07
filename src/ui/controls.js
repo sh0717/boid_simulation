@@ -1,4 +1,11 @@
-import { DEFAULTS, DEFAULT_SEED, MAX_OBSTACLES, PRESETS } from '../config.js';
+import {
+  DEFAULTS,
+  DEFAULT_SEED,
+  MAX_BOIDS,
+  MAX_NEIGHBORS,
+  MAX_OBSTACLES,
+  PRESETS,
+} from '../config.js';
 
 const byId = (id) => document.getElementById(id);
 const SLIDERS = [
@@ -43,14 +50,52 @@ export class ControlPanel {
           byId('predator-legend').hidden = !settings.predator;
           this.sync();
         });
-      for (const button of document.querySelectorAll('button[data-count]'))
-        on(button, 'click', () => {
-          if (settings.count === Number(button.dataset.count)) return;
-          actions.configure({ count: Number(button.dataset.count) });
-          actions.restart();
+      const applyPopulation = (count) => {
+        if (!Number.isInteger(count) || count < 1 || count > MAX_BOIDS) {
+          this.notify(`개체 수는 1~${MAX_BOIDS.toLocaleString()} 사이의 정수여야 합니다.`);
+          return;
+        }
+        if (settings.count === count) {
           this.sync();
-          this.notify(`${settings.count.toLocaleString()}개 개체로 다시 시작합니다.`);
-        });
+          return;
+        }
+        actions.configure({ count });
+        actions.restart();
+        this.sync();
+        this.notify(`${settings.count.toLocaleString()}개 개체로 다시 시작합니다.`);
+      };
+      for (const button of document.querySelectorAll('button[data-count]'))
+        on(button, 'click', () => applyPopulation(Number(button.dataset.count)));
+      on(byId('apply-population'), 'click', () =>
+        applyPopulation(byId('population-count').valueAsNumber),
+      );
+      on(byId('population-count'), 'keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          applyPopulation(event.target.valueAsNumber);
+        }
+      });
+      const applyMaximumNeighbors = () => {
+        const value = byId('max-neighbors').valueAsNumber;
+        if (!Number.isInteger(value) || value < 0 || value > MAX_NEIGHBORS) {
+          this.notify(`최대 이웃 수는 0~${MAX_NEIGHBORS.toLocaleString()} 사이의 정수여야 합니다.`);
+          return;
+        }
+        actions.configure({ maxNeighbors: value });
+        this.sync();
+        this.notify(
+          value === 0
+            ? '이웃 수 제한을 해제했습니다.'
+            : `가까운 이웃을 최대 ${value.toLocaleString()}개 사용합니다.`,
+        );
+      };
+      on(byId('apply-max-neighbors'), 'click', applyMaximumNeighbors);
+      on(byId('max-neighbors'), 'keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          applyMaximumNeighbors();
+        }
+      });
       on(byId('preset'), 'change', (event) => {
         const preset = PRESETS[event.target.value];
         if (!preset) return;
@@ -288,6 +333,8 @@ export class ControlPanel {
         String(Number(button.dataset.count) === this.settings.count),
       );
     byId('count-value').value = this.settings.count.toLocaleString();
+    byId('population-count').value = this.settings.count;
+    byId('max-neighbors').value = this.settings.maxNeighbors;
     byId('auto-rotate').setAttribute('aria-pressed', String(this.settings.autoRotate));
     byId('predator-legend').hidden = !this.settings.predator;
     this.syncGoal();
@@ -416,6 +463,9 @@ export class ControlPanel {
       `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
     byId('fps').textContent = Math.round(fps);
     byId('step-ms').textContent = stepMs.toFixed(2);
+    const workerCount = simulation.metrics.workerThreadCount;
+    byId('worker-count').textContent = workerCount;
+    byId('thread-mode').textContent = workerCount > 0 ? '병렬 처리' : '단일 스레드';
     byId('mean-speed').textContent = simulation.metrics.meanSpeed.toFixed(1);
     const alignment = Math.round(simulation.metrics.alignment * 100);
     byId('order').textContent = `${alignment}%`;

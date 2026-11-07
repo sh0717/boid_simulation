@@ -117,7 +117,10 @@ export class ApplicationController {
     }
     if (
       simulation.settings.colorMode === 'density' &&
-      ('colorMode' in patch || 'perception' in patch || 'fieldOfView' in patch)
+      ('colorMode' in patch ||
+        'perception' in patch ||
+        'fieldOfView' in patch ||
+        'maxNeighbors' in patch)
     )
       simulation.refreshNeighborhoodCounts();
     scene.needsRender = true;

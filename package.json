@@ -11,7 +11,7 @@
     "build:exe": "node tools/package-desktop.mjs",
     "test:exe": "node tests/desktop/desktop.mjs",
     "test": "node tools/test.mjs",
-    "test:browser": "node --max-old-space-size=768 tests/browser/browser.mjs && node tests/browser/picking.mjs && node tests/browser/construction.mjs",
+    "test:browser": "node --max-old-space-size=768 tests/browser/browser.mjs && node tests/browser/picking.mjs && node tests/browser/construction.mjs && node tests/browser/population.mjs",
     "dev:setup": "node tools/workspace.mjs setup",
     "dev:native": "node tools/workspace.mjs native-debug",
     "dev:run": "node tools/workspace.mjs native-run",

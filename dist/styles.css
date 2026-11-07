@@ -40,6 +40,8 @@
 .number-row label { margin-right: auto; font-size: 10px; color: #95b39f; }
 .number-row input, .seed-row input { min-width: 0; border: 1px solid #355345; border-radius: 4px; background: #0a1917; color: #c4e5cd; padding: 8px; font: 11px var(--mono); }
 .number-row input { width: 67px; }
+.population-entry { margin: 10px 0 0; }
+.population-entry input { width: 82px; }
 .seed-row input { flex: 1; width: 100px; }
 .number-row button, .seed-row button { background: #233d30; border-radius: 4px; padding: 9px 10px; font-size: 10px; white-space: nowrap; }
 .seed-header { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 9px; }
@@ -1167,11 +1169,15 @@ dialog dd {
     font-size: 12px;
   }
   .statusbar {
-    height: 48px;
-    padding: 0 20px;
+    height: auto;
+    min-height: 48px;
+    padding: 12px 20px;
+    flex-wrap: wrap;
+    gap: 10px;
   }
   .telemetry {
-    gap: 14px;
+    flex-wrap: wrap;
+    gap: 10px 14px;
     font-size: 8px;
   }
   .telemetry > span:nth-child(2) {

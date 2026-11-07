@@ -32,7 +32,7 @@ C++ 프로필은 렌더러 없이 코어를 실행하는 디버그 실행기입�
 - `tests/native/DebugRunner.cpp`: 시나리오 설정과 `boids_step()` 호출.
 - `native/bindings/Simulation.cpp`: `FSimulation::Step`, `Reset`과 전체 갱신 순서.
 - `native/src/simulation/BirdFlock.cpp`: `FBirdFlock::IntegrateNextVelocities`, `CommitVelocitiesAndIntegratePositions`, `CalculateMetrics`.
-- `native/src/simulation/KdTree.cpp`: `FKdTree::BuildBranch`, `FKdTree::QueryCandidates`.
+- `native/src/simulation/KdTree.cpp`: `FKdTree::BuildBalancedSubtree`, `FKdTree::QueryCandidates`.
 - `native/src/simulation/SpatialGrid.cpp`: `FSpatialGrid::Rebuild`, `FSpatialGrid::QueryCandidates`.
 - `native/src/simulation/Goal.cpp`, `Predator.cpp`: `FGoal::Update`, `FPredator::Update`.
 - `native/src/simulation/BirdFlock.cpp`: `CollectNeighborhood`, `BuildFlockingResult`의 인지 반경·시야각·군집 조향 계산.

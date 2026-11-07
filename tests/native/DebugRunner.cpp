@@ -84,12 +84,11 @@ namespace
 				return false;
 			}
 		}
-		return OutScenario.Count >= 1 && OutScenario.Count <= boids::Capacity && OutScenario.Steps >= 1 && OutScenario.Steps <= 36000;
+		return OutScenario.Count >= 1 && OutScenario.Count <= Capacity && OutScenario.Steps >= 1 && OutScenario.Steps <= 36000;
 	}
 
 	void Configure(const FScenario& Scenario)
 	{
-		using namespace boids;
 		double* ConfigValues = static_cast<double*>(boids_buffer(0));
 		ConfigValues[Count] = Scenario.Count;
 		ConfigValues[Cohesion] = 0.85;
@@ -126,7 +125,7 @@ int main(int Argc, char** Argv)
 	FScenario Scenario;
 	if (!Parse(Argc, Argv, Scenario))
 	{
-		std::cerr << "Usage: boids_debug [--count 1..1200] [--steps 1..36000] "
+		std::cerr << "Usage: boids_debug [--count 1..10000] [--steps 1..36000] "
 					 "[--seed uint32] [--search grid|kd-tree|all-pairs] [--json]\n";
 		return 2;
 	}
@@ -144,5 +143,5 @@ int main(int Argc, char** Argv)
 	const double* StateValues = static_cast<const double*>(boids_buffer(1));
 	const float* Position = static_cast<const float*>(boids_buffer(2));
 	const float* Velocity = static_cast<const float*>(boids_buffer(4));
-	std::cout << std::setprecision(12) << "{\"seed\":" << Scenario.Seed << ",\"count\":" << Scenario.Count << ",\"steps\":" << Scenario.Steps << ",\"search\":\"" << Scenario.SearchName << "\",\"time\":" << StateValues[boids::Time] << ",\"position\":[" << Position[0] << ',' << Position[1] << ',' << Position[2] << "],\"velocity\":[" << Velocity[0] << ',' << Velocity[1] << ',' << Velocity[2] << "],\"neighborChecks\":" << StateValues[boids::NeighborChecks] << ",\"meanSpeed\":" << StateValues[boids::MeanSpeed] << "}\n";
+	std::cout << std::setprecision(12) << "{\"seed\":" << Scenario.Seed << ",\"count\":" << Scenario.Count << ",\"steps\":" << Scenario.Steps << ",\"search\":\"" << Scenario.SearchName << "\",\"time\":" << StateValues[Time] << ",\"position\":[" << Position[0] << ',' << Position[1] << ',' << Position[2] << "],\"velocity\":[" << Velocity[0] << ',' << Velocity[1] << ',' << Velocity[2] << "],\"neighborChecks\":" << StateValues[NeighborChecks] << ",\"meanSpeed\":" << StateValues[MeanSpeed] << "}\n";
 }

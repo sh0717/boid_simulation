@@ -6,9 +6,11 @@ export const WORLD = Object.freeze({
   maxSpeed: 12,
   maxForce: 16,
 });
-export const MAX_BOIDS = 1200;
+export const MAX_BOIDS = 10000;
+export const MAX_NEIGHBORS = MAX_BOIDS - 1;
 export const MAX_OBSTACLES = 16;
-export const GRID_CELL_SIZE = 10; // World units per search cell; shared with the ABI descriptor.
+export const GRID_CELL_SIZE = 10; // Minimum world units per search cell.
+export const MAX_GRID_CELLS = 8000; // Must match constants::GridCellCapacity in the C++ core.
 export const OBSTACLE_CLEARANCE = 0.65;
 export const OBSTACLE_SIZE_RANGES = Object.freeze({
   radius: [0.5, 10],
@@ -25,6 +27,7 @@ export const DEFAULTS = Object.freeze({
   separation: 1.65,
   speed: 1,
   perception: 10,
+  maxNeighbors: 0,
   fieldOfView: 360,
   goal: true,
   goalSpeed: 1,
@@ -52,6 +55,7 @@ export const SETTING_RANGES = Object.freeze({
   separation: [0, 3],
   speed: [0.25, 2],
   perception: [4, 16],
+  maxNeighbors: [0, MAX_NEIGHBORS],
   fieldOfView: [60, 360],
   goalSpeed: [0, 2],
   goalStrength: [0, 3],
@@ -71,7 +75,10 @@ export function validateSettings(patch) {
       if (typeof value !== 'number' || !Number.isFinite(value))
         throw new RangeError(`${key} must be finite`);
       const [min, max] = SETTING_RANGES[key];
-      result[key] = Math.max(min, Math.min(max, key === 'count' ? Math.round(value) : value));
+      result[key] = Math.max(
+        min,
+        Math.min(max, key === 'count' || key === 'maxNeighbors' ? Math.round(value) : value),
+      );
     } else if (key === 'searchType') {
       if (!['grid', 'kd-tree'].includes(value)) throw new RangeError('Invalid search type');
       result[key] = value;

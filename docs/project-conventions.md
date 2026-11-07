@@ -100,7 +100,7 @@ C++ 파일은 PascalCase `.h/.cpp`, JS 복합 파일명은 kebab-case, Node 도�
   누적 수정은 InOut을 사용합니다. 공개 ABI 이름·값·레이아웃은 유지합니다.
 - 읽기 인터페이스를 public에 먼저 두고 내부 상태는 private으로 캡슐화합니다.
   const 조회·명시적 타입을 우선하며 auto는 람다·복잡한 iterator·의존 타입에 한정합니다.
-  STL·RAII·표준 고정폭 정수와 기존 namespace를 유지하는 독립 C++ 프로젝트 규칙입니다.
+  STL·RAII·표준 고정폭 정수를 사용하는 독립 C++ 프로젝트 규칙입니다.
 - JS는 들여쓰기 2칸, 작은따옴표, 세미콜론, camelCase 함수·변수, PascalCase 클래스,
   UPPER_SNAKE_CASE 상수입니다. Prettier 3.6.2와 .prettierrc.json을 적용합니다.
 - .editorconfig의 C++ 전용 섹션과 VS Code [cpp] 설정을 .clang-format에 맞춥니다.
