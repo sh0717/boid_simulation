@@ -36,8 +36,7 @@ namespace boids::constants
 	constexpr int BoidSpawnPadding = 6;
 	constexpr int SeparationScale = 13;
 
-	// 네이티브의 독립 개체 갱신만 병렬화합니다. 임계값과 팀 상한은 스케줄링 정책입니다.
-	constexpr int MinimumParallelBirdCount = 256;
+	// 네이티브의 독립 개체 갱신은 기본 병렬 실행하며 호출 스레드 외에 최대 3개 워커를 사용합니다.
 	constexpr int MaximumBirdWorkerCount = 3;
 
 	// 목표 경로와 포식자의 정수 상수

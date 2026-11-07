@@ -8,7 +8,7 @@ namespace boids
 	using namespace detail;
 	using namespace constants;
 
-	FBirdFlock::FBirdFlock(int MaxWorkerCount)
+	FBirdFlock::FBirdFlock(int RequestedWorkerThreadLimit)
 		: Velocities(&VelocityA)
 		, NextVelocities(&VelocityB)
 		, NeighborCounts(MaxBirdCount, std::uint16_t{0})
@@ -16,7 +16,7 @@ namespace boids
 		, Inspection(InspectionValueCount, 0.0)
 		, RandomState(0)
 		, Search(std::make_unique<FNeighborSearch>())
-		, Updates(MaxWorkerCount)
+		, BirdUpdateExecutor(RequestedWorkerThreadLimit)
 	{
 	}
 
@@ -139,9 +139,9 @@ namespace boids
 		// 모든 개체가 이전 속도를 읽은 뒤 역할을 한 번만 교체합니다.
 		std::swap(Velocities, NextVelocities);
 		// 각 작업은 자기 구간의 위치·속도만 수정하며, 모든 구간 완료 후 반환합니다.
-		const auto IntegrateRange = [this, &Context, DeltaTimeSeconds](int FirstBirdIndex, int LastBirdIndex)
+		const auto IntegrateRange = [this, &Context, DeltaTimeSeconds](int FirstBirdIndex, int EndBirdIndexExclusive)
 		{
-			for (int BirdIndex = FirstBirdIndex; BirdIndex < LastBirdIndex; ++BirdIndex)
+			for (int BirdIndex = FirstBirdIndex; BirdIndex < EndBirdIndexExclusive; ++BirdIndex)
 			{
 				const FVector3D NextPosition = Positions.GetVector(BirdIndex) + Velocities->GetVector(BirdIndex) * DeltaTimeSeconds;
 				Positions.SetVector(BirdIndex, NextPosition);
@@ -152,7 +152,7 @@ namespace boids
 				EnforceBirdBoundsAndSpeed(Context, BirdIndex);
 			}
 		};
-		Updates.ForEachRange(Context.ActiveBirdCount, IntegrateRange);
+		BirdUpdateExecutor.ExecuteBirdRangesAndWait(Context.ActiveBirdCount, IntegrateRange);
 	}
 
 	FBirdFlockMetrics FBirdFlock::CalculateMetrics(const FFlockContext& Context) const
@@ -344,14 +344,14 @@ namespace boids
 	void FBirdFlock::ReconcileObstacles(const FFlockContext& Context)
 	{
 		// 장애물은 읽기만 공유합니다. 모든 구간의 보정 완료 후 이전 위치를 복사합니다.
-		const auto ReconcileRange = [this, &Context](int FirstBirdIndex, int LastBirdIndex)
+		const auto ReconcileRange = [this, &Context](int FirstBirdIndex, int EndBirdIndexExclusive)
 		{
-			for (int BirdIndex = FirstBirdIndex; BirdIndex < LastBirdIndex; ++BirdIndex)
+			for (int BirdIndex = FirstBirdIndex; BirdIndex < EndBirdIndexExclusive; ++BirdIndex)
 			{
 				ResolveObstacles(Context, BirdIndex);
 			}
 		};
-		Updates.ForEachRange(Context.ActiveBirdCount, ReconcileRange);
+		BirdUpdateExecutor.ExecuteBirdRangesAndWait(Context.ActiveBirdCount, ReconcileRange);
 		PreviousPositions.CopyFrom(Positions);
 	}
 
@@ -462,9 +462,9 @@ namespace boids
 	void FBirdFlock::ReconcileBounds(const FFlockContext& Context)
 	{
 		// 서로 다른 개체는 독립이며, 한 개체의 경계 → 장애물 → 경계 보정 순서는 유지합니다.
-		const auto ReconcileRange = [this, &Context](int FirstBirdIndex, int LastBirdIndex)
+		const auto ReconcileRange = [this, &Context](int FirstBirdIndex, int EndBirdIndexExclusive)
 		{
-			for (int BirdIndex = FirstBirdIndex; BirdIndex < LastBirdIndex; ++BirdIndex)
+			for (int BirdIndex = FirstBirdIndex; BirdIndex < EndBirdIndexExclusive; ++BirdIndex)
 			{
 				EnforceBirdBoundsAndSpeed(Context, BirdIndex);
 				if (Context.Config.bObstaclesEnabled)
@@ -474,7 +474,7 @@ namespace boids
 				EnforceBirdBoundsAndSpeed(Context, BirdIndex);
 			}
 		};
-		Updates.ForEachRange(Context.ActiveBirdCount, ReconcileRange);
+		BirdUpdateExecutor.ExecuteBirdRangesAndWait(Context.ActiveBirdCount, ReconcileRange);
 	}
 
 	void FBirdFlock::BlendBoundarySteering(const FFlockContext& Context, int BirdIndex, FVector3D& InOutForce) const

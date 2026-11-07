@@ -57,7 +57,11 @@ npm run test:exe
 `FBirdFlock`이 소유한 `FBirdUpdateExecutor`는 `std::thread` 워커를 첫 병렬 작업에 생성하고
 재사용합니다. 워커 상한은 3개이며 하드웨어 동시성에서 호출 스레드 하나를 제외한 수로 제한합니다.
 호출 스레드도 한 구간을 처리하므로 최대 4개 실행 스레드가 참여합니다. 동시성 정보가 없거나
-개체 수가 256 미만이면 직렬 실행합니다. 256은 스케줄링 정책이며 실측한 최적 임계값은 아닙니다.
+사용 가능한 워커가 없으면 직렬 실행합니다.
+개체 수가 2개 이상이고 워커를 사용할 수 있으면 기본 병렬 실행합니다. 이전의 256개 임계값은
+제거했습니다. 개체 0개는 작업 없이 반환하고 1개는 호출 스레드에서 실행합니다. 구간 수는
+`min(개체 수, 워커 수 + 1)`이며 이번 작업에 배정되지 않은 워커는 다시 대기합니다.
+이 정책은 작은 군집에서도 병렬 동작을 명시적으로 사용하기 위한 것으로, 성능 향상을 측정한 결과는 아닙니다.
 
 병렬 대상은 `CommitVelocitiesAndIntegratePositions`, `ReconcileObstacles`, `ReconcileBounds`의
 개체별 반복문입니다. 속도 역할 교체는 작업 배포 전에 한 번만 수행하며, 한 개체 내부의 축·장애물
@@ -74,11 +78,76 @@ npm run test:exe
 
 직렬 기준선은 `FBirdFlock(0)`으로 만들 수 있습니다. 전체 네이티브 스레드 경로를 제외하려면
 별도 빌드 디렉터리에서 `cmake -S . -B build/native-serial -DBOIDS_ENABLE_THREADS=OFF`로 구성합니다.
-`native-parallel-bird-updates` CTest는 구간별 정확히 한 번 실행, 실제 작업 스레드 재사용,
-서로 다른 실행기의 동시 실행과 종료, 108개 직렬·병렬 군집 시나리오의 전체 ABI 버퍼 일치를 검사합니다.
+`native-parallel-bird-updates` CTest는 구간별 정확히 한 번 실행, 빈 구간 배제, 2·3·32개 개체의
+기본 병렬 실행, 실제 작업 스레드 재사용, 워커 상한 0의 명시적 직렬 실행, 서로 다른 실행기의
+동시 실행과 종료, 162개 직렬·병렬 군집 시나리오의 전체 ABI 버퍼 일치를 검사합니다.
 
 Wasm은 이 스레드 경로를 컴파일하지 않고 같은 구간 함수를 직렬 실행합니다. ABI v1·고정 2 MiB·
 외부 import 없음 계약을 유지하며 웹/Electron에 스레드 생성이나 공유 메모리 요구를 추가하지 않습니다.
+
+### 실행기 이름과 작업 전달
+
+`FBirdFlock`은 개체별 계산을 담은 람다를 만들고 마지막 멤버인 `BirdUpdateExecutor`에
+빌려줍니다. 실행기는 계산식이나 군집 버퍼를 소유하지 않으며 구간 분배·작업 통지·완료 대기만 담당합니다.
+
+| 이름 | 책임 |
+| --- | --- |
+| `ExecuteBirdRangesAndWait` | 람다를 받아 전체 구간이 끝날 때까지 기다리는 공개 진입점 |
+| `FBirdUpdateBatch` | 한 호출의 콜백 대여·개체 수·구간 수를 묶은 내부 작업 정보 |
+| `FBirdUpdateBatch::ExecuteRange` | 구간 번호를 반열린 인덱스 범위로 변환하고 콜백 실행 |
+| `ExecuteBatchAndWait` | 빈 작업·직렬·병렬 선택과 호출 스레드 실행·완료 대기 조율 |
+| `PublishBatch` | 잠금 아래 작업 정보 게시·순번 갱신 후 워커 깨우기 |
+| `WaitForWorkersAndClearBatch` | 배정 워커 완료 대기 후 공유 작업의 콜백 대여 해제 |
+| `RunWorkerLoop` | 새 작업 대기 → 배정 구간 실행 → 완료 보고 반복 |
+| `BorrowedRangeTaskObject` / `InvokeRangeTask` | 콜백 객체의 비소유 주소 / 원래 타입으로 복원해 호출하는 함수 |
+| `StartWorkerThreadsIfNeeded` | 첫 병렬 호출에서만 워커 풀 생성 |
+| `ActiveBatch` | 워커에게 게시된 작업 정보. 워커는 잠금 아래 복사하여 계산 중 사용 |
+| `PublishedBatchSequence` | 새 작업을 구별하는 순번 |
+| `RemainingWorkerCount` | 아직 끝나지 않은 배정 워커 수. 호출 스레드는 제외 |
+
+공개 호출 형식과 직렬·병렬 선택 정책은 유지합니다. 내부 조율은
+`PublishBatch(Batch)` → `Batch.ExecuteRange(0)` → `WaitForWorkersAndClearBatch()` 순서입니다.
+호출 스레드와 워커가 같은 `ExecuteRange`를 사용하므로 구간 분할 공식은 한 곳에만 둡니다.
+
+예를 들어 `IntegrateRange`는 `this`, `DeltaTimeSeconds`, `FFlockContext`의 참조를 캡처한
+람다 객체입니다. `BorrowedRangeTaskObject`는 이 람다 객체의 주소이며 `FFlockContext`의 주소가 아닙니다.
+`InvokeRangeTask`는 캡처가 없는 람다에서 변환된 함수 포인터입니다. 아래의 두 값은 한 쌍으로 동작합니다.
+
+```cpp
+const RangeTaskType& OriginalRangeTask = *static_cast<const RangeTaskType*>(BorrowedRangeTaskObject);
+OriginalRangeTask(FirstBirdIndex, EndBirdIndexExclusive);
+```
+
+캡처가 있는 람다는 일반 함수 포인터로 직접 바꿀 수 없으므로 객체 주소와 호출 함수를 나눕니다.
+템플릿 진입점에서 정확한 타입을 알고 호출 함수를 만들고, `.cpp`의 비템플릿 실행기는 타입을
+몰라도 이 쌍을 전달할 수 있습니다. `std::function`으로 람다를 복사·소유하지 않고 호출 동안만 빌립니다.
+
+```mermaid
+sequenceDiagram
+    participant C as 호출 스레드 / FBirdFlock
+    participant E as FBirdUpdateExecutor
+    participant W as 워커 스레드
+    C->>E: ExecuteBirdRangesAndWait(개체 수, 계산 람다)
+    Note over E: 필요 시 워커 생성, 작업 정보 저장, 작업 순번 증가
+    E->>W: BatchPublishedCondition.notify_all()
+    par 호출 스레드의 구간
+        E->>E: 0번 구간의 람다 실행
+    and 배정된 워커의 구간
+        W->>W: 작업 순번 확인, 자기 구간의 람다 실행
+        W->>E: RemainingWorkerCount 감소
+    end
+    Note over E: 모든 배정 워커 완료까지 대기
+    E-->>C: 람다 대여 해제 후 반환
+```
+
+개체 8개와 참여 스레드 4개라면 호출 스레드는 `[0, 2)`, 워커는 각각 `[2, 4)`, `[4, 6)`,
+`[6, 8)`을 처리합니다. 구간 끝 인덱스는 포함하지 않습니다. `BatchStateMutex`는 작업 게시·읽기와
+완료 수를 보호합니다. 개체 계산 중에는 잠그지 않으며 서로 겹치지 않는 개체 저장소만 수정합니다.
+
+`PublishedBatchSequence`와 각 워커의 `LastObservedBatchSequence`를 비교하므로 통지가 먼저
+발생하거나 대기에서 깨어나도 같은 작업을 중복 실행하지 않습니다. `RemainingWorkerCount`가
+0이 되면 호출 스레드가 `ActiveBatch`를 초기화하고 반환합니다. 따라서 스택 람다와 캡처한 참조는 작업이
+끝날 때까지 살아 있습니다. 소멸자는 종료를 요청하고 워커를 깨운 뒤 `join()`합니다.
 
 ## 메모리 계약
 

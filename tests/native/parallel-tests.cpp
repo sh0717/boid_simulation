@@ -15,19 +15,28 @@ namespace
 	{
 		using namespace boids;
 		FBirdUpdateExecutor Executor;
-		std::set<std::thread::id> FirstTeam;
-		const std::array<int, 8> Counts = {0, 1, 255, 256, 257, 1200, 17, 1200};
+		const std::array<int, 13> Counts = {0, 1, 2, 3, 4, 17, 32, 255, 256, 257, 1200, 2, 1200};
+		std::array<std::set<std::thread::id>, Counts.size()> FirstTeams;
+		const unsigned int HardwareThreadCount = std::thread::hardware_concurrency();
+		const int ExpectedTeamLimit = HardwareThreadCount > 1 ? static_cast<int>(std::min(HardwareThreadCount, static_cast<unsigned int>(constants::MaximumBirdWorkerCount + 1))) : 1;
 		for (int Repeat = 0; Repeat < 8; ++Repeat)
 		{
-			for (int Count : Counts)
+			for (std::size_t CaseIndex = 0; CaseIndex < Counts.size(); ++CaseIndex)
 			{
+				const int Count = Counts[CaseIndex];
 				std::vector<std::atomic<int>> Visits(constants::MaxBirdCount);
 				std::vector<std::thread::id> ThreadIds(constants::MaxBirdCount);
 				std::atomic<int> RangeCalls{0};
-				Executor.ForEachRange(Count, [&](int FirstBirdIndex, int LastBirdIndex)
+				std::atomic<bool> bInvalidRange{false};
+				Executor.ExecuteBirdRangesAndWait(Count, [&](int FirstBirdIndex, int EndBirdIndexExclusive)
 				{
 					RangeCalls.fetch_add(1);
-					for (int BirdIndex = FirstBirdIndex; BirdIndex < LastBirdIndex; ++BirdIndex)
+					if (FirstBirdIndex < 0 || FirstBirdIndex >= EndBirdIndexExclusive || EndBirdIndexExclusive > Count)
+					{
+						bInvalidRange.store(true);
+						return;
+					}
+					for (int BirdIndex = FirstBirdIndex; BirdIndex < EndBirdIndexExclusive; ++BirdIndex)
 					{
 						if (Visits[BirdIndex].fetch_add(1) == 0)
 						{
@@ -35,6 +44,10 @@ namespace
 						}
 					}
 				});
+				if (bInvalidRange.load())
+				{
+					return false;
+				}
 				for (int BirdIndex = 0; BirdIndex < constants::MaxBirdCount; ++BirdIndex)
 				{
 					if (Visits[BirdIndex].load() != (BirdIndex < Count ? 1 : 0))
@@ -51,31 +64,44 @@ namespace
 					continue;
 				}
 				const std::set<std::thread::id> Team(ThreadIds.begin(), ThreadIds.begin() + Count);
-				if (Count < constants::MinimumParallelBirdCount)
+				const int ExpectedTeamSize = std::min(Count, ExpectedTeamLimit);
+				if (static_cast<int>(Team.size()) != ExpectedTeamSize || RangeCalls.load() != ExpectedTeamSize || !Team.contains(std::this_thread::get_id()))
 				{
-					if (Team.size() != 1 || *Team.begin() != std::this_thread::get_id())
-					{
-						return false;
-					}
+					return false;
 				}
-				else
+				if (Repeat == 0)
 				{
-					if (std::thread::hardware_concurrency() > 1 && Team.size() < 2)
-					{
-						return false;
-					}
-					if (FirstTeam.empty())
-					{
-						FirstTeam = Team;
-					}
-					else if (FirstTeam != Team)
-					{
-						return false;
-					}
+					FirstTeams[CaseIndex] = Team;
+				}
+				else if (FirstTeams[CaseIndex] != Team)
+				{
+					return false;
 				}
 			}
 		}
-		std::cout << "PASS: exact range coverage, completion, serial cutoff and " << FirstTeam.size() << " reused execution threads\n";
+		std::cout << "PASS: exact nonempty range coverage, completion, default parallel small flocks and " << ExpectedTeamLimit << " reused execution threads\n";
+		return true;
+	}
+
+	bool ExplicitSerialWorkerLimit()
+	{
+		boids::FBirdUpdateExecutor SerialExecutor(0);
+		for (int Count : {0, 1, 2, 32, 1200})
+		{
+			int RangeCallCount = 0;
+			bool bExpectedCallerRange = true;
+			const std::thread::id CallerThreadId = std::this_thread::get_id();
+			SerialExecutor.ExecuteBirdRangesAndWait(Count, [&](int FirstBirdIndex, int EndBirdIndexExclusive)
+			{
+				++RangeCallCount;
+				bExpectedCallerRange = bExpectedCallerRange && std::this_thread::get_id() == CallerThreadId && FirstBirdIndex == 0 && EndBirdIndexExclusive == Count;
+			});
+			if (!bExpectedCallerRange || RangeCallCount != (Count == 0 ? 0 : 1))
+			{
+				return false;
+			}
+		}
+		std::cout << "PASS: explicit zero worker limit runs only on the caller thread\n";
 		return true;
 	}
 
@@ -88,7 +114,7 @@ namespace
 			std::thread FirstCaller([&]
 			{
 				boids::FBirdUpdateExecutor Executor;
-				Executor.ForEachRange(1200, [&](int Begin, int End)
+				Executor.ExecuteBirdRangesAndWait(1200, [&](int Begin, int End)
 				{
 					std::fill(First.begin() + Begin, First.begin() + End, 7);
 				});
@@ -96,7 +122,7 @@ namespace
 			std::thread SecondCaller([&]
 			{
 				boids::FBirdUpdateExecutor Executor;
-				Executor.ForEachRange(1200, [&](int Begin, int End)
+				Executor.ExecuteBirdRangesAndWait(1200, [&](int Begin, int End)
 				{
 					std::fill(Second.begin() + Begin, Second.begin() + End, 11);
 				});
@@ -223,14 +249,14 @@ namespace
 
 int main()
 {
-	if (!ExecutorCoverageAndReuse() || !ExecutorIsolationAndShutdown())
+	if (!ExecutorCoverageAndReuse() || !ExplicitSerialWorkerLimit() || !ExecutorIsolationAndShutdown())
 	{
 		std::cerr << "FAIL: worker coverage, completion, reuse, isolation or shutdown\n";
 		return 1;
 	}
 	using namespace boids;
 	int ScenarioCount = 0;
-	for (int Count : {0, 1, 255, 256, 257, 1200})
+	for (int Count : {0, 1, 2, 3, 32, 255, 256, 257, 1200})
 	{
 		for (EBoundaryMode Mode : {EBoundaryMode::Hard, EBoundaryMode::Soft, EBoundaryMode::Hybrid})
 		{

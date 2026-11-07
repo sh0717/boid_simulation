@@ -79,10 +79,10 @@ namespace boids
 	public:
 		/**
 		 * 군집 버퍼·진단 저장소·이웃 탐색과 개체 갱신 실행기를 준비합니다.
-		 * @param MaxWorkerCount 호출 스레드 외의 네이티브 워커 상한입니다. 0이면 직렬 실행합니다.
+		 * @param RequestedWorkerThreadLimit 호출 스레드 외의 네이티브 워커 상한입니다. 0이면 직렬 실행합니다.
 		 * @note 실제 개체 위치·속도는 Reset에서 초기화하며 워커는 첫 병렬 작업에서 생성합니다.
 		 */
-		explicit FBirdFlock(int MaxWorkerCount = constants::MaximumBirdWorkerCount);
+		explicit FBirdFlock(int RequestedWorkerThreadLimit = constants::MaximumBirdWorkerCount);
 
 		FBirdFlock(const FBirdFlock&) = delete;
 
@@ -388,6 +388,6 @@ namespace boids
 		std::unique_ptr<FNeighborSearch> Search;
 
 		// 가장 먼저 소멸하여 워커를 join한 뒤 군집 버퍼와 탐색 저장소를 해제합니다.
-		FBirdUpdateExecutor Updates;
+		FBirdUpdateExecutor BirdUpdateExecutor;
 	};
 } // namespace boids
