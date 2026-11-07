@@ -1,0 +1,56 @@
+{
+  "files.encoding": "utf8",
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "files.associations": {
+    "*.h": "cpp"
+  },
+  "[cpp]": {
+    "editor.defaultFormatter": "ms-vscode.cpptools",
+    "editor.insertSpaces": false,
+    "editor.detectIndentation": false,
+    "editor.tabSize": 4,
+    "editor.wordWrap": "off",
+    "editor.rulers": [100]
+  },
+  "C_Cpp.clang_format_style": "file",
+  "C_Cpp.default.cppStandard": "c++20",
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  "cmake.sourceDirectory": "${workspaceFolder}",
+  "cmake.buildDirectory": "${workspaceFolder}/build/native",
+  "cmake.useCMakePresets": "never",
+  "cmake.configureOnOpen": false,
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/artifacts": true,
+    "**/build": true,
+    "**/release": true,
+    "**/dist": true,
+    "**/src/simulation/generated": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/artifacts/**": true,
+    "**/build/**": true,
+    "**/release/**": true
+  },
+  "files.exclude": {
+    "node_modules": true,
+    "artifacts": true,
+    "build": true,
+    "release/win-unpacked": true,
+    "src/simulation/generated": true
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  }
+}

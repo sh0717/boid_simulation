@@ -1,0 +1,14 @@
+native/bindings/Bindings.cpp
+native/bindings/Simulation.cpp
+native/bindings/SimulationAbi.cpp
+native/src/simulation/SimulationState.cpp
+native/src/simulation/BirdFlock.cpp
+native/src/simulation/BirdUpdateExecutor.cpp
+native/src/simulation/Goal.cpp
+native/src/simulation/Predator.cpp
+native/src/simulation/NeighborSearch.cpp
+native/src/simulation/SpatialGrid.cpp
+native/src/simulation/KdTree.cpp
+native/src/collision/SphereObstacle.cpp
+native/src/collision/BoxObstacle.cpp
+native/src/collision/ObstacleSet.cpp

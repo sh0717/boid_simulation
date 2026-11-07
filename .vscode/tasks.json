@@ -1,0 +1,141 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Boids: Build app",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/workspace.mjs", "web"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Boids: Build native Debug",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/workspace.mjs", "native-debug"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Boids: Build native Release",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/workspace.mjs", "native-release"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Boids: Test core",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/run.mjs", "test"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Boids: Test native C++",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/workspace.mjs", "native-test"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "test",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Boids: Test browser",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/run.mjs", "test:browser"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Boids: Build Windows EXE",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/package-desktop.mjs"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Lab: Build web",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/run.mjs", "build"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Lab: Build native Debug",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/run.mjs", "build:native"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Lab: Build native Release",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/run.mjs", "build:native:release"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Lab: Test native Debug",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/run.mjs", "test:native"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Lab: Test native Release",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/run.mjs", "test:native:release"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Lab: Release EXE",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/run.mjs", "release:exe"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

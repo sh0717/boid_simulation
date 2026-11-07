@@ -1,0 +1,8 @@
+{
+  "compiler": "Emscripten 4.0.23",
+  "standard": "C++20",
+  "abi": 1,
+  "bytes": 31353,
+  "sourceSha256": "28b381476099e7fd75918b88bc332335323304f34c2c1fdc83392e27b15108f5",
+  "wasmSha256": "9d1308d767057e31ef465bb5421769065d1b81397e25286da03beaecce679598"
+}

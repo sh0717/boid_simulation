@@ -1,0 +1,46 @@
+{
+  "name": "murmuration-boids-lab",
+  "version": "1.0.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "build": "node tools/build.mjs",
+    "build:core": "node tools/build-core.mjs",
+    "build:all": "npm run build:core && npm run build",
+    "build:exe": "node tools/package-desktop.mjs",
+    "test:exe": "node tests/desktop/desktop.mjs",
+    "test": "node tools/test.mjs",
+    "test:browser": "node --max-old-space-size=768 tests/browser/browser.mjs && node tests/browser/picking.mjs && node tests/browser/construction.mjs",
+    "dev:setup": "node tools/workspace.mjs setup",
+    "dev:native": "node tools/workspace.mjs native-debug",
+    "dev:run": "node tools/workspace.mjs native-run",
+    "test:native": "node tools/native.mjs test",
+    "test:vscode": "node tools/workspace.mjs native-debug && node tools/verify-vscode.mjs",
+    "dev:web": "node tools/workspace.mjs web",
+    "benchmark": "node tools/benchmark.mjs",
+    "check:format": "node tools/style.mjs",
+    "format": "node tools/style.mjs --write",
+    "check:structure": "node tools/check-structure.mjs",
+    "check": "npm run check:format && npm run check:structure && npm run check:runtime && npm test",
+    "check:runtime": "node tools/check-runtime.mjs",
+    "verify": "node tools/verify.mjs",
+    "build:web": "node tools/build.mjs",
+    "release:exe": "node tools/release-desktop.mjs",
+    "build:native": "node tools/native.mjs build",
+    "build:native:release": "node tools/native.mjs build --release",
+    "test:native:release": "node tools/native.mjs test --release",
+    "check:layout": "node tools/check-layout.mjs",
+    "test:distribution": "node tests/browser/distribution.mjs"
+  },
+  "dependencies": {
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "electron": "44.9.3",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.25.10",
+    "playwright": "1.55.1",
+    "prettier": "3.6.2"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C++: Simulation (Grid)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/native/Debug/boids_debug.exe",
+      "args": ["--search", "grid", "--count", "32", "--steps", "180", "--seed", "22823"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": true,
+      "console": "integratedTerminal",
+      "preLaunchTask": "Boids: Build native Debug"
+    },
+    {
+      "name": "C++: Simulation (KdTree)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/native/Debug/boids_debug.exe",
+      "args": ["--search", "kd-tree", "--count", "32", "--steps", "180", "--seed", "22823"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": true,
+      "console": "integratedTerminal",
+      "preLaunchTask": "Boids: Build native Debug"
+    },
+    {
+      "name": "Web: Three.js (Edge)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/serve.mjs",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "preLaunchTask": "Boids: Build app",
+      "serverReadyAction": {
+        "pattern": "Murmuration: (http://127\\.0\\.0\\.1:[0-9]+)",
+        "uriFormat": "%s",
+        "action": "debugWithEdge",
+        "webRoot": "${workspaceFolder}",
+        "killOnServerStop": true
+      }
+    }
+  ]
+}

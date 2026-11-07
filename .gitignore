@@ -1,0 +1,69 @@
+# Dependencies, SDKs, build outputs and local verification evidence
+node_modules/
+artifacts/
+build/
+release/
+.tools/
+tmp/
+__pycache__/
+*.pyc
+*.obj
+*.exe
+*.log
+coverage/
+.venv/
+.pytest_cache/
+test-results/
+playwright-report/
+
+# Machine-specific editor and CMake configuration
+.vscode/c_cpp_properties.json
+CMakeUserPresets.json
+Boids-Lab.local.code-workspace
+*.local.code-workspace
+.vs/
+*.user
+*.suo
+
+# Local working copies, README staging files and original assignment archive
+/docs/oop-refactor-2026-10-26/
+/docs/README.root-ready.md
+/docs/github-readme.patch
+/2021-22823.pdf
+
+# Local instructions and working notes; allow only shared documentation.
+/AGENTS.md
+/docs/*
+!/docs/README.md
+!/docs/architecture.md
+!/docs/boids-theory.md
+!/docs/code-review-guide.md
+!/docs/cpp-coding-standard.md
+!/docs/cpp-core.md
+!/docs/cpp-project-rules.md
+!/docs/desktop.md
+!/docs/github-upload.md
+!/docs/native-layout.md
+!/docs/neighbor-search.md
+!/docs/performance.md
+!/docs/project-conventions.md
+!/docs/project-layout.md
+!/docs/verification.md
+!/docs/vscode.md
+!/docs/data/
+!/docs/images/
+
+# Local environment and operating-system files
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+Desktop.ini
+.codex/
+.agents/
+
+# Keep dist/, src/simulation/generated/ and yoosh.html in Git.
+# They let the downloaded repository run without compiling C++ or installing Node.js.
+
+# release/ also contains unified EXE checksums and release-manifest.json.

@@ -1,0 +1,31 @@
+# Unreal Engine source conventions adapted for standalone C++20.
+# Reference and deliberate project choices: docs/cpp-coding-standard.md.
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++20
+UseTab: ForContinuationAndIndentation
+TabWidth: 4
+IndentWidth: 4
+ContinuationIndentWidth: 4
+AlignAfterOpenBracket: DontAlign
+AlignOperands: DontAlign
+NamespaceIndentation: All
+IndentCaseLabels: true
+IndentAccessModifiers: false
+AccessModifierOffset: -4
+# Keep declarations, assignments, calculations, conditions and argument lists on one line.
+# Braces and comments retain their structural line breaks.
+ColumnLimit: 0
+ReflowComments: false
+PointerAlignment: Left
+DerivePointerAlignment: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortLambdasOnASingleLine: None
+LambdaBodyIndentation: OuterScope
+BreakBeforeBraces: Allman
+BreakConstructorInitializers: BeforeComma
+InsertBraces: true
+SeparateDefinitionBlocks: Always

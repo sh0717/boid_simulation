@@ -1,0 +1,118 @@
+{
+  "environment": {
+    "node": "v22.20.0",
+    "cpu": "AMD Ryzen 9 5900X 12-Core Processor",
+    "platform": "win32 x64"
+  },
+  "conditions": "seed 22823; radius 10; FOV 360; 120 warm-up + 360 measured fixed 1/60 s steps; full C++17 WASM CPU step INCLUDING search rebuild and JS bridge; free-flight disables goal/predator/cohesion/alignment; flocking uses defaults with predator enabled; identical C++ rules for every search strategy",
+  "results": [
+    {
+      "agents": 320,
+      "scenario": "free-flight",
+      "method": "all-pairs",
+      "backend": "cpp17-wasm",
+      "meanMs": 0.314,
+      "p95Ms": 0.338,
+      "meanDistanceChecks": 102080
+    },
+    {
+      "agents": 320,
+      "scenario": "free-flight",
+      "method": "grid",
+      "backend": "cpp17-wasm",
+      "meanMs": 0.199,
+      "p95Ms": 0.227,
+      "meanDistanceChecks": 12581
+    },
+    {
+      "agents": 320,
+      "scenario": "free-flight",
+      "method": "kd-tree",
+      "backend": "cpp17-wasm",
+      "meanMs": 0.272,
+      "p95Ms": 0.297,
+      "meanDistanceChecks": 18603
+    },
+    {
+      "agents": 320,
+      "scenario": "flocking",
+      "method": "all-pairs",
+      "backend": "cpp17-wasm",
+      "meanMs": 0.74,
+      "p95Ms": 0.848,
+      "meanDistanceChecks": 102080
+    },
+    {
+      "agents": 320,
+      "scenario": "flocking",
+      "method": "grid",
+      "backend": "cpp17-wasm",
+      "meanMs": 0.567,
+      "p95Ms": 0.696,
+      "meanDistanceChecks": 57216
+    },
+    {
+      "agents": 320,
+      "scenario": "flocking",
+      "method": "kd-tree",
+      "backend": "cpp17-wasm",
+      "meanMs": 0.705,
+      "p95Ms": 0.809,
+      "meanDistanceChecks": 57187
+    },
+    {
+      "agents": 1200,
+      "scenario": "free-flight",
+      "method": "all-pairs",
+      "backend": "cpp17-wasm",
+      "meanMs": 4.101,
+      "p95Ms": 5.423,
+      "meanDistanceChecks": 1438800
+    },
+    {
+      "agents": 1200,
+      "scenario": "free-flight",
+      "method": "grid",
+      "backend": "cpp17-wasm",
+      "meanMs": 2.004,
+      "p95Ms": 2.332,
+      "meanDistanceChecks": 172983
+    },
+    {
+      "agents": 1200,
+      "scenario": "free-flight",
+      "method": "kd-tree",
+      "backend": "cpp17-wasm",
+      "meanMs": 2.674,
+      "p95Ms": 3.055,
+      "meanDistanceChecks": 182369
+    },
+    {
+      "agents": 1200,
+      "scenario": "flocking",
+      "method": "all-pairs",
+      "backend": "cpp17-wasm",
+      "meanMs": 9.54,
+      "p95Ms": 11.069,
+      "meanDistanceChecks": 1438800
+    },
+    {
+      "agents": 1200,
+      "scenario": "flocking",
+      "method": "grid",
+      "backend": "cpp17-wasm",
+      "meanMs": 6.072,
+      "p95Ms": 7.294,
+      "meanDistanceChecks": 620454
+    },
+    {
+      "agents": 1200,
+      "scenario": "flocking",
+      "method": "kd-tree",
+      "backend": "cpp17-wasm",
+      "meanMs": 6.703,
+      "p95Ms": 8.265,
+      "meanDistanceChecks": 537276
+    }
+  ]
+}

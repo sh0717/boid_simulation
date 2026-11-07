@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#091516">
+  <meta name="description" content="Murmuration — 상호작용으로 살펴보는 3D Boids 군집 시뮬레이션">
+  <title>Murmuration — Boids Lab</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b1a1a'/%3E%3Cpath d='M12 46 29 13 31 38 49 20 40 50 31 40Z' fill='%239feac8'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./dist/styles.css">
+  <script defer src="./dist/app.js"></script>
+</head>
+<body>
+  <svg class="svg-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+    <symbol id="icon-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z"/></symbol>
+    <symbol id="icon-reset" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1 8M4 4v6h6"/></symbol>
+    <symbol id="icon-camera" viewBox="0 0 24 24"><path d="M4 8h4l2-3h4l2 3h4v12H4Z"/><circle cx="12" cy="13" r="3"/></symbol>
+    <symbol id="icon-expand" viewBox="0 0 24 24"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5"/></symbol>
+    <symbol id="icon-orbit" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="5" transform="rotate(-35 12 12)"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="icon-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 5m0 3v.1"/></symbol>
+    <symbol id="icon-step" viewBox="0 0 24 24"><path d="m5 5 10 7-10 7Zm14 0v14"/></symbol>
+    <symbol id="icon-inspect" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></symbol>
+  </svg>
+  <header class="topbar">
+    <a class="brand" href="./index.html" aria-label="Murmuration 처음으로">
+      <svg viewBox="0 0 40 40" class="brand-mark" aria-hidden="true"><path d="M4 31 17 5l3 22L35 11l-8 25-7-8Z" fill="currentColor"/></svg>
+      <span>MURMURATION<span class="brand-sub">AN EXPLORATION OF COLLECTIVE MOTION</span></span>
+    </a>
+    <div class="topbar-center"><span class="tiny-index">EXPERIMENT 001</span><span class="topbar-divider"></span><span>BOIDS LAB</span></div>
+    <button class="help-button" id="help-open"><svg class="icon"><use href="#icon-help"/></svg><span>사용 안내</span></button>
+  </header>
+  <main class="workspace">
+    <section id="viewport" class="viewport" aria-label="시뮬레이션 뷰포트">
+      <div class="scene-heading">
+        <div class="eyebrow"><span class="live-dot" id="live-dot"></span><span id="simulation-status">INITIALIZING</span><span class="heading-slash">/</span> THREE SIMPLE RULES. INFINITE POSSIBILITIES.</div>
+        <h1>작은 움직임,<br><span>하나의 흐름.</span></h1>
+        <p>개체의 선택이 군집의 질서가 되는 순간을 관찰하세요.</p>
+      </div>
+      <div class="view-tools" role="group" aria-label="카메라 제어">
+        <button class="icon-button" id="camera-reset" aria-label="카메라 초기화" title="카메라 초기화 · C"><svg class="icon"><use href="#icon-camera"/></svg></button>
+        <button class="icon-button" id="auto-rotate" aria-label="카메라 자동 회전" aria-pressed="false" title="카메라 자동 회전"><svg class="icon"><use href="#icon-orbit"/></svg></button>
+        <button class="icon-button" id="inspect-toggle" aria-label="개체 관찰" aria-pressed="false" title="개체 관찰 · Boid를 클릭해 선택"><svg class="icon"><use href="#icon-inspect"/></svg></button>
+        <button class="icon-button" id="fullscreen" aria-label="전체 화면" title="전체 화면"><svg class="icon"><use href="#icon-expand"/></svg></button>
+      </div>
+      <div class="scene-legend" aria-label="범례"><span><i class="legend-dart"></i> BOID</span><span id="goal-legend"><i class="legend-goal"></i> GOAL</span><span id="goal-path-legend"><i class="legend-goal-path"></i> 목표 궤도</span><span><i class="legend-obstacle"></i> OBSTACLE</span><span id="predator-legend" hidden><i class="legend-predator"></i> PREDATOR</span></div>
+      <div class="axis-indicator" aria-hidden="true"><svg viewBox="0 0 70 66"><path d="M30 39V10" stroke="#9ac8b8"/><path d="m30 39 26 12" stroke="#bda486"/><path d="M30 39 8 53" stroke="#6794b4"/><circle cx="30" cy="39" r="2" fill="#b9d5c9"/><text x="27" y="7">Y</text><text x="59" y="57">X</text><text x="0" y="62">Z</text></svg></div>
+      <div id="color-legend" class="color-legend"><span id="color-legend-title">SPEED / u·s⁻¹</span><i id="color-ramp"></i><span class="color-endpoints"><b id="color-min">5</b><b id="color-max">12</b></span></div>
+      <aside id="inspection-card" class="inspection-card" aria-label="선택 개체 관찰 정보" hidden>
+        <div class="inspection-heading"><span class="eyebrow">INDIVIDUAL STUDY</span><strong id="inspected-id">#0001</strong></div>
+        <div class="inspection-stats"><span>인지 이웃 <b id="inspected-neighbors">0</b></span><span>근접 이웃 <b id="inspected-close">0</b></span></div>
+        <div class="force-readouts"><span class="force-cohesion">응집 <b id="force-cohesion">0.00</b></span><span class="force-alignment">정렬 <b id="force-alignment">0.00</b></span><span class="force-separation">분리 <b id="force-separation">0.00</b></span></div>
+        <p><i class="velocity-key"></i>속도 <b id="inspected-speed">0.0</b> u/s <span id="inspected-perception">10u · 360°</span></p>
+        <small>가중 조향 성분 u/s² · 환경 힘·최종 제한 전<br>연결선 최대 64개 · 클릭하여 다른 개체 선택</small>
+      </aside>
+      <div class="transport">
+        <button id="play-pause" class="play-button" aria-label="일시정지" disabled><svg class="icon"><use id="play-icon" href="#icon-pause"/></svg><span id="play-label">일시정지</span></button>
+        <button id="restart" class="restart-button" aria-label="시뮬레이션 다시 시작" title="다시 시작 · R" disabled><svg class="icon"><use href="#icon-reset"/></svg></button>
+        <button id="single-step" class="restart-button" aria-label="한 스텝 진행" title="일시정지 중 1/60초 진행 · ." disabled><svg class="icon"><use href="#icon-step"/></svg></button>
+        <span class="transport-divider"></span>
+        <span class="timecode" id="timecode">00:00</span><span class="transport-caption">ELAPSED</span>
+        <span class="keyboard-hint"><kbd>SPACE</kbd> pause</span>
+      </div>
+      <div class="viewport-footer"><span>드래그 <b>회전</b><i>·</i> 스크롤 <b>확대</b><i>·</i> 우클릭 <b>이동</b></span><span><span id="world-size-label">50 × 50 × 50</span> <span class="muted">WORLD UNITS</span></span></div>
+      <div id="loading" class="loading" role="status"><span class="loading-ring"></span>군집을 준비하고 있습니다.</div>
+      <div id="error" class="error-panel" role="alert" hidden><strong>3D 화면을 시작할 수 없습니다.</strong><p id="error-message"></p><button id="reload-scene">다시 불러오기</button></div>
+      <div id="toast" class="toast" role="status"></div>
+    </section>
+    <aside class="control-panel" aria-label="군집 제어 패널">
+      <div class="panel-heading"><span class="eyebrow">CONTROL DECK</span><div><h2>군집 제어</h2><span class="panel-number">01 — 03</span></div><p>규칙을 조율하고, 흐름의 변화를 관찰하세요.</p></div>
+      <fieldset id="settings" disabled>
+        <section class="control-section population-section">
+          <div class="section-label"><h3>개체 수</h3><span class="number-value"><output id="count-value">320</output><small> BOIDS</small></span></div>
+          <div class="segmented" role="group" aria-label="개체 수 선택"><button type="button" data-count="160" aria-pressed="false">160</button><button type="button" data-count="320" aria-pressed="true">320</button><button type="button" data-count="640" aria-pressed="false">640</button><button type="button" data-count="1200" aria-pressed="false">1,200</button></div>
+        </section>
+        <details class="lab-section" id="lab-section">
+          <summary><span>인지 · 재현 실험</span><span class="section-code">EXPERIMENT +</span></summary>
+          <div class="rule"><div class="rule-title"><label for="perception">인지 반경</label><output for="perception" id="perception-value">10 u</output></div><input id="perception" type="range" min="4" max="16" step="1" value="10"><p>주변을 얼마나 넓게 인식할지 조절합니다.</p></div>
+          <div class="rule"><div class="rule-title"><label for="fieldOfView">시야각</label><output for="fieldOfView" id="fieldOfView-value">360°</output></div><input id="fieldOfView" type="range" min="60" max="360" step="15" value="360"><p>응집·정렬에 적용합니다. 근거리 분리는 전방위입니다.</p></div>
+          <label class="toggle-row inspect-row" for="inspect"><span>개체 관찰</span><input type="checkbox" id="inspect" role="switch"><span class="switch" aria-hidden="true"></span></label>
+          <div class="number-row"><label for="selected-boid">선택 개체</label><input type="number" id="selected-boid" min="1" max="320" step="1" value="1"><button type="button" id="next-boid" title="다음 개체 선택">다음 →</button></div>
+          <div class="seed-header"><label for="seed">배치 시드</label><span class="section-code">REPRODUCIBLE</span></div>
+          <div class="seed-row"><input type="number" id="seed" min="0" max="4294967295" step="1" value="22823" aria-describedby="seed-hint"><button type="button" id="apply-seed">적용</button><button type="button" id="new-seed">새 배치</button></div>
+          <p id="seed-hint" class="lab-note">같은 시드와 규칙은 같은 움직임을 만듭니다.</p>
+          <label class="search-label" for="search-type">이웃 탐색 방식</label><select id="search-type"><option value="grid">균일 격자 · Uniform grid</option><option value="kd-tree">kd-tree · Balanced median</option></select>
+          <p class="lab-note">같은 규칙으로 탐색 비용을 비교합니다. 하단 SIM은 재구축을 포함한 계산 시간입니다.</p>
+        </details>
+        <section class="control-section rules-section">
+          <div class="section-label"><h3>군집 규칙</h3><span class="section-code">BEHAVIOR</span></div>
+          <label class="select-label" for="preset">프리셋</label><select id="preset"><option value="balanced">균형 비행 · Balanced</option><option value="school">밀집 군집 · Schooling</option><option value="scatter">자유 확산 · Scattered</option><option value="custom" disabled>직접 조정 · Custom</option></select>
+          <div class="rule"><div class="rule-title"><label for="cohesion"><span class="rule-index">01</span>응집 <small>Cohesion</small></label><output for="cohesion" id="cohesion-value">0.85</output></div><input id="cohesion" type="range" min="0" max="3" step="0.05" value="0.85"><p>가까운 이웃의 중심으로 모입니다.</p></div>
+          <div class="rule"><div class="rule-title"><label for="alignment"><span class="rule-index">02</span>정렬 <small>Alignment</small></label><output for="alignment" id="alignment-value">1.20</output></div><input id="alignment" type="range" min="0" max="3" step="0.05" value="1.2"><p>이웃과 같은 방향으로 비행합니다.</p></div>
+          <div class="rule"><div class="rule-title"><label for="separation"><span class="rule-index">03</span>분리 <small>Separation</small></label><output for="separation" id="separation-value">1.65</output></div><input id="separation" type="range" min="0" max="3" step="0.05" value="1.65"><p>서로의 거리를 유지합니다.</p></div>
+        </section>
+        <section class="control-section environment-section">
+          <div class="section-label"><h3>환경</h3><span class="section-code">ENVIRONMENT</span></div>
+          <details class="actor-settings obstacle-settings world-settings" id="world-settings"><summary>맵 박스 크기 <span>MAP SIZE</span></summary>
+            <fieldset id="world-fields"><legend>전체 길이 · 각 축 20–200 u</legend><div class="obstacle-grid">
+              <label for="world-width">가로 X<input type="number" id="world-width" min="20" max="200" step="1" value="50"></label>
+              <label for="world-height">높이 Y<input type="number" id="world-height" min="20" max="200" step="1" value="50"></label>
+              <label for="world-depth">깊이 Z<input type="number" id="world-depth" min="20" max="200" step="1" value="50"></label>
+            </div></fieldset>
+            <button type="button" class="obstacle-apply" id="apply-world">맵 크기 적용</button>
+            <p class="obstacle-feedback" id="world-feedback" role="status" aria-live="polite"></p>
+            <p class="lab-note">입력 후 적용 또는 Enter. 시간·재생 상태를 유지합니다. Hard·혼합에서는 경계 밖 개체를 안쪽으로 보정하고, Soft에서는 서서히 돌아옵니다. 기존 장애물이 들어가지 않는 축소는 적용하지 않습니다. 작은 맵에서는 목표 궤도도 축소됩니다.</p>
+            <label class="color-select-label" for="boundaryMode">맵 경계 방식</label>
+            <select id="boundaryMode" aria-describedby="boundary-description">
+              <option value="hybrid" selected>혼합 · 회피 + Hard 제한</option>
+              <option value="hard">Hard · 강제 제한</option>
+              <option value="soft">Soft · 부드러운 복귀</option>
+            </select>
+            <p class="lab-note" id="boundary-description" role="status"></p>
+            <div class="rule"><div class="rule-title"><label for="boundaryMargin">경계 회피 구간</label><output for="boundaryMargin" id="boundaryMargin-value">5 u</output></div><input type="range" id="boundaryMargin" min="1" max="10" step="0.5" value="5"><p>벽 안쪽에서 회피를 시작할 거리입니다. 각 축 길이의 ¼ 이하로 적용합니다.</p></div>
+            <div class="rule"><div class="rule-title"><label for="boundaryStrength">경계 회피 강도</label><output for="boundaryStrength" id="boundaryStrength-value">1.00×</output></div><input type="range" id="boundaryStrength" min="0.25" max="3" step="0.05" value="1"><p>Boid 회피에 적용합니다. Hard에서는 두 설정을 사용하지 않습니다.</p></div>
+            <p class="lab-note" id="boundary-outside">영역 밖 Boid 0 / 320 · 최대 이탈 0.0 u</p>
+            <p class="lab-note">Soft는 경계 안에 항상 머무르는 것을 보장하지 않습니다. 장애물 충돌은 모든 모드에서 계속 적용됩니다. 공간 가이드는 표시만 켜고 끕니다.</p>
+          </details>
+          <label class="toggle-row" for="goal"><span><i class="setting-dot gold"></i>목표 추적</span><input type="checkbox" id="goal" role="switch" checked><span class="switch" aria-hidden="true"></span></label>
+          <details class="actor-settings" id="goal-settings"><summary>목표 파라미터 <span>↗</span></summary>
+            <p class="lab-note" id="goal-motion-state" role="status">이동 목표 · 1.00×</p>
+            <div class="rule"><div class="rule-title"><label for="goalSpeed">목표 이동 속도</label><output for="goalSpeed" id="goalSpeed-value">1.00×</output></div><input type="range" id="goalSpeed" min="0" max="2" step="0.1" value="1"><p>궤도 진행 배율입니다. 0이면 목표 표시를 고정합니다.</p></div>
+            <div class="rule"><div class="rule-title"><label for="goalStrength">목표 추적 강도</label><output for="goalStrength" id="goalStrength-value">1.00×</output></div><input type="range" id="goalStrength" min="0" max="3" step="0.1" value="1"><p>0이면 목표의 끌어당기는 힘만 제거합니다. Boid는 최소 비행 속도를 유지합니다.</p></div>
+            <p class="lab-note">금색 화살표는 목표의 진행 방향, 점선은 전체 궤도입니다. 목표 추적을 끄면 위치를 유지하고, 다시 켜면 이어서 이동합니다.</p>
+          </details>
+          <label class="toggle-row" for="predator"><span><i class="setting-dot coral"></i>포식자 회피</span><input type="checkbox" id="predator" role="switch"><span class="switch" aria-hidden="true"></span></label>
+          <details class="actor-settings predator-settings" id="predator-settings"><summary>포식자 파라미터 <span>↗</span></summary>
+            <div class="rule"><div class="rule-title"><label for="predatorSpeed">포식자 최고 속도</label><output for="predatorSpeed" id="predatorSpeed-value">14 u/s</output></div><input type="range" id="predatorSpeed" min="0" max="24" step="1" value="14"><p>0이면 포식자를 현재 위치에 정지합니다.</p></div>
+            <div class="rule"><div class="rule-title"><label for="predatorRadius">회피 반경</label><output for="predatorRadius" id="predatorRadius-value">13 u</output></div><input type="range" id="predatorRadius" min="4" max="24" step="1" value="13"><p>관찰 모드의 붉은 구가 회피 범위입니다.</p></div>
+            <div class="rule"><div class="rule-title"><label for="predatorStrength">회피 강도</label><output for="predatorStrength" id="predatorStrength-value">1.00×</output></div><input type="range" id="predatorStrength" min="0" max="3" step="0.1" value="1"><p>포식자를 피하는 조향 가중치입니다.</p></div>
+          </details>
+          <label class="toggle-row" for="obstacles"><span><i class="setting-dot gray"></i>장애물</span><input type="checkbox" id="obstacles" role="switch" checked><span class="switch" aria-hidden="true"></span></label>
+          <details class="actor-settings obstacle-settings" id="obstacle-settings"><summary>장애물 편집 <span id="obstacle-count">2 / 16</span></summary>
+            <div class="obstacle-actions"><button type="button" id="add-sphere">+ 구 · Sphere</button><button type="button" id="add-box">+ 박스 · Box</button></div>
+            <label class="color-select-label" for="selected-obstacle">편집할 장애물</label>
+            <select id="selected-obstacle" aria-describedby="obstacle-hint"></select>
+            <fieldset id="obstacle-fields">
+              <legend>중심 위치 · u</legend>
+              <div class="obstacle-grid">
+                <label for="obstacle-x">X<input type="number" id="obstacle-x" min="-25" max="25" step="any"></label>
+                <label for="obstacle-y">Y<input type="number" id="obstacle-y" min="-25" max="25" step="any"></label>
+                <label for="obstacle-z">Z<input type="number" id="obstacle-z" min="-25" max="25" step="any"></label>
+              </div>
+              <div id="sphere-size" class="obstacle-size"><label for="obstacle-radius">반지름 · u <span>0.5–10</span></label><input type="number" id="obstacle-radius" min="0.5" max="10" step="any"></div>
+              <div id="box-size" class="obstacle-size" hidden><p>전체 크기 · u <span>각 1–20</span></p><div class="obstacle-grid">
+                <label for="obstacle-width">가로 X<input type="number" id="obstacle-width" min="1" max="20" step="any"></label>
+                <label for="obstacle-height">높이 Y<input type="number" id="obstacle-height" min="1" max="20" step="any"></label>
+                <label for="obstacle-depth">깊이 Z<input type="number" id="obstacle-depth" min="1" max="20" step="any"></label>
+              </div></div>
+              <button type="button" id="apply-obstacle" class="obstacle-apply">위치·크기 적용</button>
+            </fieldset>
+            <p id="obstacle-feedback" class="obstacle-feedback" role="status" aria-live="polite"></p>
+            <div class="obstacle-actions"><button type="button" id="remove-obstacle">선택 삭제</button><button type="button" id="reset-obstacles">기본 배치</button></div>
+            <p class="lab-note" id="obstacle-hint">숫자를 입력한 뒤 적용 또는 Enter를 누르세요. 화면의 장애물을 클릭해 선택할 수도 있습니다(개체 관찰 꺼짐). 박스는 X·Y·Z축에 정렬됩니다.</p>
+            <p class="lab-note" id="obstacle-disabled" hidden>장애물이 꺼져 있습니다. 편집한 배치는 다시 켜면 표시됩니다.</p>
+          </details>
+        </section>
+        <section class="control-section display-section">
+          <div class="section-label"><h3>화면 설정</h3><span class="section-code">DISPLAY</span></div>
+          <label class="color-select-label" for="color-mode">군집 색상</label><select id="color-mode"><option value="speed">속도 · Speed</option><option value="density">이웃 밀도 · Density</option><option value="natural">자연색 · Original</option></select>
+          <div class="display-toggles"><label for="trails"><input type="checkbox" id="trails" checked><span>비행 궤적</span></label><label for="bounds"><input type="checkbox" id="bounds" checked><span>공간 가이드</span></label></div>
+          <label class="toggle-row goal-path-row" for="goalPath"><span>목표 궤도</span><input type="checkbox" id="goalPath" role="switch" checked><span class="switch" aria-hidden="true"></span></label>
+          <div class="rule-title speed-title"><label for="speed">재생 속도</label><output for="speed" id="speed-value">1.00×</output></div><input id="speed" type="range" min="0.25" max="2" step="0.25" value="1"><div class="range-endpoints"><span>0.25×</span><span>2.00×</span></div>
+        </section>
+        <button class="restore-button" id="restore" type="button"><svg class="icon"><use href="#icon-reset"/></svg>기본 설정으로 복원</button>
+      </fieldset>
+      <div class="panel-footnote"><span class="footnote-line"></span>LOCAL INTERACTIONS. COLLECTIVE INTELLIGENCE.</div>
+    </aside>
+  </main>
+  <footer class="statusbar">
+    <div class="status-brand"><span class="live-dot"></span><span id="engine-status">STARTING</span></div>
+    <div class="telemetry"><span><b id="fps">—</b> FPS</span><span><b id="step-ms">—</b> ms <small>SIM</small></span><span><b id="mean-speed">—</b> u/s</span><span>정렬도 <b id="order">—</b><i class="order-bar"><i id="order-fill"></i></i></span></div>
+    <span class="status-version">BOIDS / VOL. 001</span>
+  </footer>
+  <dialog id="help-dialog">
+    <div class="dialog-top"><span class="eyebrow">FIELD NOTES</span><button id="help-close" aria-label="안내 닫기">×</button></div>
+    <h2>군집을 관찰하는 방법</h2><p>각 개체는 주변 이웃만 살펴봅니다. 응집·정렬·분리, 세 가지 국소 규칙이 전체의 움직임을 만듭니다.</p>
+    <dl><dt>드래그 / 휠 / 우클릭</dt><dd>카메라 회전 / 확대 / 이동</dd><dt>Space / R / C</dt><dd>재생·정지 / 다시 시작 / 카메라 초기화</dd><dt>목표 추적</dt><dd>금색 목표를 따라 비행합니다.</dd><dt>포식자 회피</dt><dd>붉은 포식자가 군집을 추적하고 개체들은 회피합니다.</dd><dt>정렬도</dt><dd>모든 개체가 같은 방향을 향하면 100%에 가까워집니다.</dd></dl>
+    <p class="dialog-note">관찰 모드에서 Boid를 클릭하면 인지 범위·이웃·조향 성분을 표시합니다. 파란 화살표는 속도입니다. 인지·재현 실험에서 반경, 시야각, 시드를 조절할 수 있습니다. 일시정지 중 <kbd>.</kbd> 또는 한 스텝 버튼으로 1/60초씩 진행합니다.<br>환경 → 장애물 편집에서 구·박스를 추가하고 중심 위치와 크기를 적용합니다. 관찰 모드가 꺼져 있으면 화면에서 장애물을 클릭해 선택할 수 있습니다. 장애물 간 겹침과 월드 밖 배치는 허용하지 않습니다.<br>다시 시작은 현재 규칙·시드·장애물 배치를 유지합니다. 개체 수 변경은 시뮬레이션을 다시 시작합니다. 기본 설정 복원은 장애물도 초기화합니다.</p>
+  </dialog>
+  <noscript><div class="noscript">시뮬레이션을 실행하려면 브라우저에서 JavaScript를 허용하세요.</div></noscript>
+</body>
+</html>

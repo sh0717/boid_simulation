@@ -1,0 +1,41 @@
+name: Build and test
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: '22.20.0'
+          cache: npm
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.13.5'
+      - name: Install locked dependencies and formatter
+        shell: pwsh
+        run: |
+          npm ci --ignore-scripts
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -m pip install clang-format==22.1.3
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "CLANG_FORMAT=$((Get-Command clang-format).Source)" >> $env:GITHUB_ENV
+      - name: Install Emscripten 4.0.23
+        shell: pwsh
+        run: |
+          $taskSdk = Join-Path $env:RUNNER_TEMP 'boids-emsdk'
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git $taskSdk
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & (Join-Path $taskSdk 'emsdk.bat') install 4.0.23
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & (Join-Path $taskSdk 'emsdk.bat') activate 4.0.23
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "EMSDK=$taskSdk" >> $env:GITHUB_ENV
+      - name: Build Wasm and web, check sources, run native and browser tests
+        run: npm run verify
