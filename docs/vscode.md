@@ -55,6 +55,13 @@ npm run test:native
 
 ## 파일 표시와 설정
 
+이 프로젝트는 `files.autoSave: afterDelay`, `files.autoSaveDelay: 500`을 사용합니다.
+VS Code에서 편집한 내용은 입력을 멈춘 뒤 500ms 후 자동 저장합니다.
+자동 저장은 편집기 내용을 디스크에 쓰는 기능이며, 외부 도구가 저장한 파일을 읽는 변경 감지와는 별개입니다.
+`native/`, `src/`, `tests/`, `tools/`는 파일 감시에서 제외하지 않습니다.
+외부 변경과 미저장 편집이 충돌하면 자동 덮어쓰기 대신 충돌을 해결해야 합니다.
+설정 변경은 현재 작업 폴더에 적용됩니다. [공식 자동 저장 설명](https://code.visualstudio.com/docs/editing/codebasics#_save-auto-save)을 참조하십시오.
+
 `node_modules`, `artifacts`, `build`, 생성된 코어는 탐색기/검색에서 제외합니다. 삭제한 것이 아니므로 VS Code 설정에서 `files.exclude`를 끄거나 파일 탐색기에서 확인할 수 있습니다. 실제 수정 대상은 `native/`, `src/`, `tests/`, `tools/`입니다.
 
 `npm run dev:setup`은 컴파일러 경로를 `.vscode/c_cpp_properties.json`, CMake 경로를 `Boids-Lab.local.code-workspace`에 기록합니다. 두 파일은 Git에서 제외한 PC별 생성물입니다. 추적하는 `Boids-Lab.code-workspace`와 `.vscode/settings.json`은 변경하지 않습니다. 다른 PC나 Visual Studio 업데이트 후 명령을 다시 실행하면 로컬 경로만 갱신합니다. `.clang-format`은 C++20·탭 폭 4·Allman 기준이며 함수 인자와 선언·대입·계산·조건식을 한 줄에 유지합니다. C/C++ 확장의 포맷 명령으로 적용합니다. C++ 편집기의 자동 줄바꿈도 끕니다.
