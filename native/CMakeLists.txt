@@ -1,7 +1,18 @@
+# Remove CMake's MSVC default in this directory before applying the target policy.
+if(MSVC)
+  string(REGEX REPLACE "(^|[ \t])[-/]EHsc([ \t]|$)" "\\1" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+endif()
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/sources.txt" boids_sources)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS sources.txt)
 list(TRANSFORM boids_sources PREPEND "${PROJECT_SOURCE_DIR}/")
 add_library(boids_core STATIC ${boids_sources})
+# Keep the core and every native consumer on the same no-exceptions STL contract.
+if(MSVC)
+  target_compile_options(boids_core PUBLIC /EHs-c-)
+  target_compile_definitions(boids_core PUBLIC _HAS_EXCEPTIONS=0)
+else()
+  target_compile_options(boids_core PUBLIC -fno-exceptions)
+endif()
 target_include_directories(boids_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/bindings/include")
 target_include_directories(boids_core PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/src"

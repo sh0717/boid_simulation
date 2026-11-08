@@ -181,6 +181,23 @@ Boids는 ABI v1·고정 2 MiB·무 import·예외 비활성 계약을 유지합�
 
 네이티브 Debug/Release는 MSVC로 같은 소스를 빌드합니다. 브라우저의 WASM과 별도 프로세스이므로 실제 UI 연동은 브라우저/EXE 검사에서 확인해야 합니다. 검증 범위는 [verification.md](verification.md)에 기록합니다.
 
+### C++ 오류 처리 정책
+
+네이티브와 Wasm 모두 C++ 예외를 사용하지 않습니다. CMake의 `boids_core`는 MSVC의
+`/EHs-c-`·`_HAS_EXCEPTIONS=0`, GCC/Clang의 `-fno-exceptions`를 소비 타깃에도 전달합니다.
+따라서 네이티브 실행기와 CTest도 같은 설정을 사용합니다. Wasm은 기존
+`-fno-exceptions` 설정을 유지합니다. [MSVC 옵션의 의미](https://learn.microsoft.com/en-us/cpp/build/reference/eh-exception-handling-model)는 컴파일러 문서를 따릅니다.
+`core/BuildPolicy.h`는 예외가 활성화된 내부 C++ 빌드를 거부하며, `check:structure`는
+C++의 `try`·`catch`·`throw`와 Windows SEH 구문을 검사합니다.
+
+복구 가능한 입력 오류는 경계에서 검증하고 명시적인 반환값으로 처리합니다. 예를 들어
+잘못된 ABI 버퍼 selector는 기존처럼 `nullptr`를 반환합니다. C ABI의 시뮬레이션 명령은
+호출자가 검증한 설정을 요구하며, 내부 불변식 위반은 개발 빌드의 assert로 확인합니다.
+메모리 할당·스레드 생성 등의 자원 실패는 복구 경로가 없으므로 실행을 계속할 수 없는
+오류로 취급합니다. 예외 비활성화가 이런 실패를 성공이나 오류 반환값으로 바꾸지는 않습니다.
+정상 반환·소멸 시의 RAII 자원 정리는 유지합니다. JS 입력 검증·개발 도구의 오류 처리는
+각 언어의 기존 방식을 사용합니다.
+
 공식 참고: [Emscripten 설치](https://emscripten.org/docs/getting_started/downloads.html), [컴파일 설정](https://emscripten.org/docs/tools_reference/settings_reference.html). 런타임 라이선스는 dist/CORE-LICENSES.txt에 포함합니다.
 
 

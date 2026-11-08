@@ -35,6 +35,9 @@ for (const file of files) {
     const line = code.slice(0, offset).split('\n').length;
     failures.push(`${relative}:${line}: ${message}`);
   };
+  for (const match of code.matchAll(/\b(?:try|catch|throw|__try|__except|__finally)\b/g)) {
+    fail(match.index, 'exceptions: use explicit results and precondition checks.');
+  }
   for (const match of code.matchAll(/\[\s*(?:&|=)\s*(?:,|\])/g)) {
     fail(match.index, 'lambda: capture used variables explicitly.');
   }
@@ -66,4 +69,6 @@ for (const file of files) {
   }
 }
 assert.equal(failures.length, 0, failures.join('\n'));
-console.log(`C++ basic naming rules passed (${files.length} files; lexical checks only).`);
+console.log(
+  `C++ naming and no-exceptions rules passed (${files.length} files; lexical checks only).`,
+);

@@ -1,4 +1,5 @@
 #pragma once
+#include "BuildPolicy.h"
 #include <boids/boids.h>
 
 namespace constants
