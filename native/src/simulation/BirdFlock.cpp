@@ -1,5 +1,6 @@
 #include "simulation/BirdFlock.h"
 #include "core/MathUtils.h"
+
 #include <algorithm>
 #include <cmath>
 #include <numbers>
@@ -26,6 +27,7 @@ double FBirdFlock::RandomValue()
 	RandomState += 0x6D2B79F5u;
 	std::uint32_t RandomBits = (RandomState ^ (RandomState >> 15)) * (1u | RandomState);
 	RandomBits ^= RandomBits + (RandomBits ^ (RandomBits >> 7)) * (61u | RandomBits);
+
 	return static_cast<double>(RandomBits ^ (RandomBits >> 14)) / RandomOutputScale;
 }
 
@@ -38,6 +40,7 @@ void FBirdFlock::EnforceBirdSpeedRange(FBirdVectorBuffer& Buffer, int BirdIndex)
 		Buffer.SetVector(BirdIndex, {MinimumBoidSpeed, 0, 0});
 		return;
 	}
+
 	const double Factor = Clamp(Speed, MinimumBoidSpeed, MaximumBoidSpeed) / Speed;
 	const FVector3D LimitedVelocity = Velocity * Factor;
 	Buffer.SetVector(BirdIndex, LimitedVelocity);
@@ -46,6 +49,7 @@ void FBirdFlock::EnforceBirdSpeedRange(FBirdVectorBuffer& Buffer, int BirdIndex)
 void FBirdFlock::Reset(std::uint32_t Seed, const FFlockContext& Context)
 {
 	RandomState = Seed;
+
 	// 현재 속도 역할을 유지해야 홀수 스텝 뒤 재시작도 기존 버퍼 계약을 지킵니다.
 	for (int BirdIndex = 0; BirdIndex < Context.ActiveBirdCount; ++BirdIndex)
 	{
@@ -54,12 +58,14 @@ void FBirdFlock::Reset(std::uint32_t Seed, const FFlockContext& Context)
 			Positions.GetComponent(BirdIndex, Axis) = static_cast<float>((RandomValue() - 0.5) * (Context.Config.Bounds.HalfExtents[Axis] * 2 - BoidSpawnPadding));
 			Velocities->GetComponent(BirdIndex, Axis) = static_cast<float>(RandomValue() * 2 - 1);
 		}
+
 		EnforceBirdSpeedRange(*Velocities, BirdIndex);
 		if (Context.Config.bObstaclesEnabled)
 		{
 			ResolveObstacles(Context, BirdIndex);
 		}
 	}
+
 	std::fill(NeighborCounts.begin(), NeighborCounts.end(), std::uint16_t{0});
 }
 
@@ -83,6 +89,7 @@ void FBirdFlock::RefreshNeighborhoodCounts(const FFlockContext& Context)
 {
 	RebuildNeighborSearch(Context);
 	const FNeighborhoodQuery Query = CreateNeighborhoodQuery(Context.Config);
+
 	for (int BirdIndex = 0; BirdIndex < Context.ActiveBirdCount; ++BirdIndex)
 	{
 		const FFlockingResult Result = EvaluateFlocking(Context, Query, BirdIndex);
@@ -95,17 +102,17 @@ double FBirdFlock::IntegrateNextVelocities(double DeltaTimeSeconds, const FFlock
 	// 거리 제곱과 시야각 기준은 이번 조회의 모든 개체가 공유합니다.
 	const FNeighborhoodQuery Query = CreateNeighborhoodQuery(Context.Config);
 	double TotalDistanceChecks = 0;
+
 	for (int BirdIndex = 0; BirdIndex < Context.ActiveBirdCount; ++BirdIndex)
 	{
 		FFlockingResult Result = EvaluateFlocking(Context, Query, BirdIndex);
-
 		TotalDistanceChecks += Result.DistanceCheckCount;
-
 		NeighborCounts[BirdIndex] = static_cast<std::uint16_t>(Result.VisibleNeighborCount);
 
 		AccumulateExternalForces(Context, BirdIndex, Result.Force);
 		IntegrateBirdVelocity(BirdIndex, Result.Force, DeltaTimeSeconds);
 	}
+
 	// 개체별 결과는 다음 속도에만 썼으며 현재 속도 역할의 교체는 호출자가 별도로 수행합니다.
 	return TotalDistanceChecks;
 }
@@ -113,14 +120,17 @@ double FBirdFlock::IntegrateNextVelocities(double DeltaTimeSeconds, const FFlock
 void FBirdFlock::AccumulateExternalForces(const FFlockContext& Context, int BirdIndex, FVector3D& InOutForce) const
 {
 	const FVector3D Position = Positions.GetVector(BirdIndex);
+
 	if (Context.Config.bGoalEnabled)
 	{
 		Context.Goal.AccumulateAttractionForce(Position, Context.Config.GoalAttractionWeight, InOutForce);
 	}
+
 	if (Context.Config.bPredatorEnabled)
 	{
 		Context.Predator.AccumulateAvoidanceForce(Position, Context.Config.PredatorAvoidanceRadius, Context.Config.PredatorAvoidanceWeight, InOutForce);
 	}
+
 	AccumulateObstacleAvoidanceForce(Context, BirdIndex, InOutForce);
 	BlendBoundarySteering(Context, BirdIndex, InOutForce);
 }
@@ -130,6 +140,7 @@ void FBirdFlock::IntegrateBirdVelocity(int BirdIndex, const FVector3D& Force, do
 	const FVector3D CurrentVelocity = Velocities->GetVector(BirdIndex);
 	const double ForceScale = std::min(1.0, MaximumBoidForce / std::max(Epsilon, Force.Length()));
 	const FVector3D NextVelocity = CurrentVelocity + Force * ForceScale * DeltaTimeSeconds;
+
 	NextVelocities->SetVector(BirdIndex, NextVelocity);
 	EnforceBirdSpeedRange(*NextVelocities, BirdIndex);
 }
@@ -138,6 +149,7 @@ void FBirdFlock::CommitVelocitiesAndIntegratePositions(double DeltaTimeSeconds, 
 {
 	// 모든 개체가 이전 속도를 읽은 뒤 역할을 한 번만 교체합니다.
 	std::swap(Velocities, NextVelocities);
+
 	// 각 작업은 자기 구간의 위치·속도만 수정하며, 모든 구간 완료 후 반환합니다.
 	const auto IntegrateRange = [this, &Context, DeltaTimeSeconds](int FirstBirdIndex, int EndBirdIndexExclusive)
 	{
@@ -145,13 +157,16 @@ void FBirdFlock::CommitVelocitiesAndIntegratePositions(double DeltaTimeSeconds, 
 		{
 			const FVector3D NextPosition = Positions.GetVector(BirdIndex) + Velocities->GetVector(BirdIndex) * DeltaTimeSeconds;
 			Positions.SetVector(BirdIndex, NextPosition);
+
 			if (Context.Config.bObstaclesEnabled)
 			{
 				ResolveObstacles(Context, BirdIndex);
 			}
+
 			EnforceBirdBoundsAndSpeed(Context, BirdIndex);
 		}
 	};
+
 	BirdUpdateExecutor.ExecuteBirdRangesAndWait(Context.ActiveBirdCount, IntegrateRange);
 }
 
@@ -161,23 +176,27 @@ FBirdFlockMetrics FBirdFlock::CalculateMetrics(const FFlockContext& Context) con
 	FVector3D HeadingSum;
 	double OutsideBirdCount = 0;
 	double MaxBoundaryExcursion = 0;
+
 	for (int BirdIndex = 0; BirdIndex < Context.ActiveBirdCount; ++BirdIndex)
 	{
 		const FVector3D Velocity = Velocities->GetVector(BirdIndex);
 		const double Speed = std::max(Epsilon, Velocity.Length());
 		SpeedSum += Speed;
 		double BoundaryExcursion = 0;
+
 		for (EAxis Axis : AllAxes)
 		{
 			HeadingSum[Axis] += Velocity[Axis] / Speed;
 			BoundaryExcursion = std::max(BoundaryExcursion, std::abs(Positions.GetComponent(BirdIndex, Axis)) - Context.Config.Bounds.HalfExtents[Axis]);
 		}
+
 		if (BoundaryExcursion > 0)
 		{
 			++OutsideBirdCount;
 		}
 		MaxBoundaryExcursion = std::max(MaxBoundaryExcursion, BoundaryExcursion);
 	}
+
 	return {SpeedSum / Context.ActiveBirdCount, HeadingSum.Length() / Context.ActiveBirdCount, OutsideBirdCount, MaxBoundaryExcursion};
 }
 
@@ -205,14 +224,17 @@ FFlockingResult FBirdFlock::EvaluateFlocking(const FFlockContext& Context, const
 {
 	const FFlockingAccumulator Accumulator = CollectNeighborhood(Query, BirdIndex, bWriteInspection);
 	const FFlockingForces Forces = CalculateFlockingForces(Context, BirdIndex, Accumulator);
+
 	FFlockingResult Result;
 	Result.Force = (Forces.Separation + Forces.Cohesion) + Forces.Alignment;
 	Result.DistanceCheckCount = Accumulator.DistanceCheckCount;
 	Result.VisibleNeighborCount = Accumulator.VisibleNeighborCount;
+
 	if (bWriteInspection)
 	{
 		PublishBirdInspection(Accumulator, Forces);
 	}
+
 	return Result;
 }
 
@@ -224,6 +246,7 @@ FBirdFlock::FFlockingAccumulator FBirdFlock::CollectNeighborhood(const FNeighbor
 	const double SeparationRadiusSquared = SeparationRadius * SeparationRadius;
 	const bool bFilterFieldOfView = Query.bFilterFieldOfView && SpeedSquared > Epsilon;
 	FFlockingAccumulator Accumulator;
+
 	const auto AccumulateSelectedNeighbor = [this, &Accumulator, &Query, &Velocity, BirdIndex, SeparationRadiusSquared, bFilterFieldOfView, SpeedSquared, bWriteInspection](int NeighborBirdIndex, const FVector3D& AwayFromNeighbor, double DistanceSquared)
 	{
 		// 시야 밖의 근접 개체도 겹침을 피해야 하므로 FOV 판정보다 먼저 분리를 누적합니다.
@@ -239,12 +262,14 @@ FBirdFlock::FFlockingAccumulator FBirdFlock::CollectNeighborhood(const FNeighbor
 				Accumulator.SeparationSum += AwayFromNeighbor / DistanceSquared;
 			}
 		}
+
 		// AwayFromNeighbor는 이웃에서 자신으로 향하므로 시선 판정에는 내적의 부호를 뒤집습니다.
 		const bool bOutsideFieldOfView = bFilterFieldOfView && DistanceSquared >= Epsilon && -Velocity.Dot(AwayFromNeighbor) < Query.HalfFieldOfViewCosine * std::sqrt(SpeedSquared * DistanceSquared) - FieldOfViewTolerance;
 		if (bOutsideFieldOfView)
 		{
 			return;
 		}
+
 		Accumulator.PositionSum += Positions.GetVector(NeighborBirdIndex);
 		Accumulator.VelocitySum += Velocities->GetVector(NeighborBirdIndex);
 		if (bWriteInspection)
@@ -253,21 +278,26 @@ FBirdFlock::FFlockingAccumulator FBirdFlock::CollectNeighborhood(const FNeighbor
 		}
 		++Accumulator.VisibleNeighborCount;
 	};
+
 	const auto IsNearer = [](const FNearestNeighborCandidate& Left, const FNearestNeighborCandidate& Right)
 	{
 		return Left.DistanceSquared < Right.DistanceSquared || (Left.DistanceSquared == Right.DistanceSquared && Left.BirdIndex < Right.BirdIndex);
 	};
+
 	if (Query.MaximumNeighborCount > 0)
 	{
 		NearestNeighborScratch.clear();
 	}
+
 	const std::vector<int>& CandidateIndices = Search->QueryCandidates(Position, Query.PerceptionRadius);
+
 	for (int NeighborBirdIndex : CandidateIndices)
 	{
 		if (BirdIndex == NeighborBirdIndex)
 		{
 			continue;
 		}
+
 		++Accumulator.DistanceCheckCount;
 		const FVector3D AwayFromNeighbor = Position - Positions.GetVector(NeighborBirdIndex);
 		const double DistanceSquared = AwayFromNeighbor.LengthSquared();
@@ -275,12 +305,14 @@ FBirdFlock::FFlockingAccumulator FBirdFlock::CollectNeighborhood(const FNeighbor
 		{
 			continue;
 		}
+
 		if (Query.MaximumNeighborCount == 0)
 		{
 			// 무제한일 때는 기존 후보 순서 그대로 누적하여 수치 동작을 유지합니다.
 			AccumulateSelectedNeighbor(NeighborBirdIndex, AwayFromNeighbor, DistanceSquared);
 			continue;
 		}
+
 		const FNearestNeighborCandidate Candidate = {NeighborBirdIndex, DistanceSquared};
 		if (NearestNeighborScratch.size() < static_cast<std::size_t>(Query.MaximumNeighborCount))
 		{
@@ -295,15 +327,18 @@ FBirdFlock::FFlockingAccumulator FBirdFlock::CollectNeighborhood(const FNeighbor
 			std::push_heap(NearestNeighborScratch.begin(), NearestNeighborScratch.end(), IsNearer);
 		}
 	}
+
 	if (Query.MaximumNeighborCount > 0)
 	{
 		std::sort_heap(NearestNeighborScratch.begin(), NearestNeighborScratch.end(), IsNearer);
+
 		for (const FNearestNeighborCandidate& Candidate : NearestNeighborScratch)
 		{
 			const FVector3D AwayFromNeighbor = Position - Positions.GetVector(Candidate.BirdIndex);
 			AccumulateSelectedNeighbor(Candidate.BirdIndex, AwayFromNeighbor, Candidate.DistanceSquared);
 		}
 	}
+
 	return Accumulator;
 }
 
@@ -312,12 +347,15 @@ FBirdFlock::FFlockingForces FBirdFlock::CalculateFlockingForces(const FFlockCont
 	FVector3D CohesionForce = Accumulator.PositionSum;
 	FVector3D AlignmentForce = Accumulator.VelocitySum;
 	FVector3D SeparationForce = Accumulator.SeparationSum;
+
 	if (Accumulator.VisibleNeighborCount)
 	{
 		CohesionForce = (CohesionForce / Accumulator.VisibleNeighborCount - Positions.GetVector(BirdIndex)) * (Context.Config.CohesionWeight * CohesionScale);
 		AlignmentForce = (AlignmentForce / Accumulator.VisibleNeighborCount - Velocities->GetVector(BirdIndex)) * Context.Config.AlignmentWeight;
 	}
+
 	SeparationForce *= Context.Config.SeparationWeight * SeparationScale;
+
 	return {CohesionForce, AlignmentForce, SeparationForce};
 }
 
@@ -329,6 +367,7 @@ void FBirdFlock::PublishBirdInspection(const FFlockingAccumulator& Accumulator, 
 		Inspection[InspectionAlignmentOffset + ToIndex(Axis)] = Forces.Alignment[Axis];
 		Inspection[InspectionSeparationOffset + ToIndex(Axis)] = Forces.Separation[Axis];
 	}
+
 	Inspection[InspectionNeighborCount] = Accumulator.VisibleNeighborCount;
 	Inspection[InspectionCloseCount] = Accumulator.CloseNeighborCount;
 }
@@ -361,6 +400,7 @@ void FBirdFlock::ProjectBirdOutsideObstacle(const FFlockContext& Context, int Bi
 	{
 		float& PositionComponent = Positions.GetComponent(BirdIndex, Axis);
 		PositionComponent = static_cast<float>(PositionComponent + SurfaceNormal[Axis] * ProjectionDistance);
+
 		if (!Context.Config.IsSoftBoundary())
 		{
 			PositionComponent = static_cast<float>(Clamp(PositionComponent, -Context.Config.Bounds.HalfExtents[Axis], Context.Config.Bounds.HalfExtents[Axis]));
@@ -371,10 +411,12 @@ void FBirdFlock::ProjectBirdOutsideObstacle(const FFlockContext& Context, int Bi
 void FBirdFlock::ReflectBirdVelocityFromObstacle(int BirdIndex, const FVector3D& SurfaceNormal)
 {
 	double NormalVelocity = 0;
+
 	for (EAxis Axis : AllAxes)
 	{
 		NormalVelocity += Velocities->GetComponent(BirdIndex, Axis) * SurfaceNormal[Axis];
 	}
+
 	if (NormalVelocity < 0)
 	{
 		for (EAxis Axis : AllAxes)
@@ -395,7 +437,9 @@ void FBirdFlock::ReconcileObstacles(const FFlockContext& Context)
 			ResolveObstacles(Context, BirdIndex);
 		}
 	};
+
 	BirdUpdateExecutor.ExecuteBirdRangesAndWait(Context.ActiveBirdCount, ReconcileRange);
+
 	PreviousPositions.CopyFrom(Positions);
 }
 
@@ -405,6 +449,7 @@ void FBirdFlock::AccumulateObstacleAvoidanceForce(const FFlockContext& Context, 
 	{
 		return;
 	}
+
 	for (int ObstacleIndex = 0; ObstacleIndex < Context.Obstacles.GetActiveObstacleCount(); ++ObstacleIndex)
 	{
 		const FObstacle& Obstacle = Context.Obstacles.GetObstacle(ObstacleIndex);
@@ -415,6 +460,7 @@ void FBirdFlock::AccumulateObstacleAvoidanceForce(const FFlockContext& Context, 
 		{
 			continue;
 		}
+
 		const double FalloffLength = Obstacle.GetAvoidanceFalloffLength(ObstacleAvoidanceDistance);
 		const double ForceMagnitude = std::min(1.0, (ObstacleAvoidanceDistance - SignedSurfaceDistance) / FalloffLength) * ObstacleAvoidanceForceScale;
 		InOutForce += Normal * ForceMagnitude;
@@ -437,6 +483,7 @@ void FBirdFlock::EnforceBirdBoundsAndSpeed(const FFlockContext& Context, int Bir
 			}
 		}
 	}
+
 	EnforceBirdSpeedRange(*Velocities, BirdIndex);
 }
 
@@ -444,6 +491,7 @@ FBirdFlock::FBoundarySteering FBirdFlock::CalculateBoundarySteering(const FFlock
 {
 	FBoundarySteering Steering;
 	double NormalizedExcursion = 0;
+
 	for (EAxis Axis : AllAxes)
 	{
 		const double Position = Positions.GetComponent(BirdIndex, Axis);
@@ -451,6 +499,7 @@ FBirdFlock::FBoundarySteering FBirdFlock::CalculateBoundarySteering(const FFlock
 		Steering.Force[Axis] = -Sign(Position) * std::max(0.0, std::abs(Position) - Context.Config.Bounds.HalfExtents[Axis] + MarginWidth);
 		NormalizedExcursion = std::max(NormalizedExcursion, (std::abs(Position) - Context.Config.Bounds.HalfExtents[Axis]) / MarginWidth);
 	}
+
 	Steering.OutsideBlendWeight = std::min(1.0, NormalizedExcursion);
 	const double Magnitude = Steering.Force.Length();
 	if (Magnitude < Epsilon)
@@ -458,23 +507,29 @@ FBirdFlock::FBoundarySteering FBirdFlock::CalculateBoundarySteering(const FFlock
 		// 매우 작은 힘도 기존 조기 반환값이므로 0으로 덮어쓰지 않습니다.
 		return Steering;
 	}
+
 	const FVector3D InwardNormal = Steering.Force / Magnitude;
 	const FVector3D Velocity = Velocities->GetVector(BirdIndex);
 	const double Speed = Velocity.Length();
+
 	double DirectionCosine = 0;
 	for (EAxis Axis : AllAxes)
 	{
 		DirectionCosine += InwardNormal[Axis] * Velocity[Axis];
 	}
 	DirectionCosine = Speed > Epsilon ? DirectionCosine / Speed : 0;
+
 	const double BoundaryForceMagnitude = Magnitude * BoundaryForceScale * Context.Config.BoundaryStrength;
 	Steering.Force = InwardNormal * BoundaryForceMagnitude;
+
 	const double TurnWeight = std::max(0.0, (-DirectionCosine - BoundaryHeadOnCosine) / BoundaryTurnRange);
 	if (TurnWeight == 0)
 	{
 		return Steering;
 	}
+
 	AccumulateBoundaryTangentForce(InwardNormal, BoundaryForceMagnitude, TurnWeight, Steering.Force);
+
 	return Steering;
 }
 
@@ -486,10 +541,12 @@ EAxis FBirdFlock::SelectBoundaryTangentAxis(const FVector3D& InwardNormal)
 	{
 		return EAxis::X;
 	}
+
 	if (std::abs(InwardNormal.Y) <= std::abs(InwardNormal.Z))
 	{
 		return EAxis::Y;
 	}
+
 	return EAxis::Z;
 }
 
@@ -497,6 +554,7 @@ void FBirdFlock::AccumulateBoundaryTangentForce(const FVector3D& InwardNormal, d
 {
 	const EAxis TangentAxis = SelectBoundaryTangentAxis(InwardNormal);
 	const double TangentScale = BoundaryForceMagnitude * TurnWeight / std::sqrt(std::max(Epsilon, 1 - InwardNormal[TangentAxis] * InwardNormal[TangentAxis]));
+
 	for (EAxis ComponentAxis : AllAxes)
 	{
 		InOutForce[ComponentAxis] += ((TangentAxis == ComponentAxis ? 1 : 0) - InwardNormal[ComponentAxis] * InwardNormal[TangentAxis]) * TangentScale;
@@ -511,13 +569,16 @@ void FBirdFlock::ReconcileBounds(const FFlockContext& Context)
 		for (int BirdIndex = FirstBirdIndex; BirdIndex < EndBirdIndexExclusive; ++BirdIndex)
 		{
 			EnforceBirdBoundsAndSpeed(Context, BirdIndex);
+
 			if (Context.Config.bObstaclesEnabled)
 			{
 				ResolveObstacles(Context, BirdIndex);
 			}
+
 			EnforceBirdBoundsAndSpeed(Context, BirdIndex);
 		}
 	};
+
 	BirdUpdateExecutor.ExecuteBirdRangesAndWait(Context.ActiveBirdCount, ReconcileRange);
 }
 

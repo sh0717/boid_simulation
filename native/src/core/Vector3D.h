@@ -1,6 +1,8 @@
 #pragma once
+
 #include "core/Axis.h"
 #include "core/SimulationConstants.h"
+
 #include <array>
 #include <cmath>
 
@@ -25,10 +27,12 @@ struct FVector3D
 		{
 			return X;
 		}
+
 		if (Axis == EAxis::Y)
 		{
 			return Y;
 		}
+
 		return Z;
 	}
 
@@ -38,10 +42,12 @@ struct FVector3D
 		{
 			return X;
 		}
+
 		if (Axis == EAxis::Y)
 		{
 			return Y;
 		}
+
 		return Z;
 	}
 
@@ -75,6 +81,7 @@ struct FVector3D
 		X += Other.X;
 		Y += Other.Y;
 		Z += Other.Z;
+
 		return *this;
 	}
 
@@ -83,6 +90,7 @@ struct FVector3D
 		X -= Other.X;
 		Y -= Other.Y;
 		Z -= Other.Z;
+
 		return *this;
 	}
 
@@ -91,6 +99,7 @@ struct FVector3D
 		X *= Scalar;
 		Y *= Scalar;
 		Z *= Scalar;
+
 		return *this;
 	}
 
@@ -99,6 +108,7 @@ struct FVector3D
 		X /= Scalar;
 		Y /= Scalar;
 		Z /= Scalar;
+
 		return *this;
 	}
 

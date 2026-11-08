@@ -1,4 +1,5 @@
 #pragma once
+
 #include "collision/ObstacleSet.h"
 #include "core/Axis.h"
 #include "core/SimulationConfig.h"
@@ -10,6 +11,7 @@
 #include "simulation/Goal.h"
 #include "simulation/NeighborSearch.h"
 #include "simulation/Predator.h"
+
 #include <boids/boids.h>
 #include <memory>
 #include <vector>

@@ -1,8 +1,10 @@
 #pragma once
+
 #include "core/Axis.h"
 #include "core/SimulationConstants.h"
 #include "core/Vector3D.h"
 #include "simulation/BirdVectorBuffer.h"
+
 #include <array>
 #include <vector>
 

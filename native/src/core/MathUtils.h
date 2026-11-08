@@ -1,5 +1,7 @@
 #pragma once
+
 #include "core/SimulationConstants.h"
+
 #include <algorithm>
 #include <cmath>
 #include <numbers>

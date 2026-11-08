@@ -1,4 +1,5 @@
 #pragma once
+
 #include <array>
 
 // 계산 축을 구분하며 AllAxes 순서는 기존 X→Y→Z 누적 순서입니다.

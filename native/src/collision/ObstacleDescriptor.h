@@ -1,5 +1,7 @@
 #pragma once
+
 #include "core/Vector3D.h"
+
 #include <array>
 #include <boids/boids.h>
 

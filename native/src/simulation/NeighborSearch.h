@@ -1,8 +1,10 @@
 #pragma once
+
 #include "core/SimulationConfig.h"
 #include "simulation/BirdVectorBuffer.h"
 #include "simulation/KdTree.h"
 #include "simulation/SpatialGrid.h"
+
 #include <vector>
 
 // 구체 격자, 최대 용량을 예약한 후보 벡터와 마지막 탐색 설정을 소유합니다.

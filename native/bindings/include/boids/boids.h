@@ -1,4 +1,5 @@
 #pragma once
+
 #include <cstdint>
 #include <limits>
 #if defined(__EMSCRIPTEN__)

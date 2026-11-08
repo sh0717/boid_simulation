@@ -1,6 +1,8 @@
 #pragma once
+
 #include "collision/Obstacle.h"
 #include "collision/ObstacleDescriptor.h"
+
 #include <memory>
 #include <vector>
 

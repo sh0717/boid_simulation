@@ -1,4 +1,5 @@
 #pragma once
+
 #include "SimulationAbi.h"
 #include "core/SimulationConfig.h"
 #include "core/SimulationConstants.h"
@@ -6,6 +7,7 @@
 #include "simulation/Goal.h"
 #include "simulation/Predator.h"
 #include "simulation/SimulationState.h"
+
 #include <boids/boids.h>
 
 // host-facing 코디네이터로 ABI 입력·출력과 소유 도메인 객체의 갱신 순서를 연결합니다.

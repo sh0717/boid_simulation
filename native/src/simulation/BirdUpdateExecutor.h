@@ -1,4 +1,5 @@
 #pragma once
+
 #include "core/SimulationConstants.h"
 #if defined(BOIDS_ENABLE_THREADS) && !defined(__EMSCRIPTEN__)
 #include <condition_variable>
@@ -64,10 +65,12 @@ public:
 			const RangeTaskType& OriginalRangeTask = *static_cast<const RangeTaskType*>(BorrowedRangeTaskObject);
 			OriginalRangeTask(FirstBirdIndex, EndBirdIndexExclusive);
 		};
+
 		FBirdUpdateBatch Batch;
 		Batch.BorrowedRangeTaskObject = &RangeTask;
 		Batch.InvokeRangeTask = InvokeRangeTask;
 		Batch.BirdCount = BirdCount;
+
 		ExecuteBatchAndWait(Batch);
 	}
 

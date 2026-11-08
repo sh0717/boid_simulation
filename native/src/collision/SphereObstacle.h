@@ -1,4 +1,5 @@
 #pragma once
+
 #include "collision/Obstacle.h"
 
 // 중심과 반지름을 소유하고 구 표면의 부호 있는 거리와 법선을 계산합니다.

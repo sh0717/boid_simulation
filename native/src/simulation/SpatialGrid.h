@@ -1,7 +1,9 @@
 #pragma once
+
 #include "core/SimulationConstants.h"
 #include "core/WorldBounds.h"
 #include "simulation/BirdVectorBuffer.h"
+
 #include <array>
 #include <vector>
 

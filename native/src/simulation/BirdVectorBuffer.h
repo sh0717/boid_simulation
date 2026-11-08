@@ -1,5 +1,7 @@
 #pragma once
+
 #include "core/Vector3D.h"
+
 #include <algorithm>
 #include <cassert>
 #include <vector>
@@ -79,6 +81,7 @@ public:
 		{
 			return;
 		}
+
 		std::copy(Source.Components.begin(), Source.Components.end(), Components.begin());
 	}
 
@@ -105,8 +108,10 @@ private:
 	static int GetComponentOffset(int BirdIndex, EAxis Axis)
 	{
 		assert(BirdIndex >= 0 && BirdIndex < constants::MaxBirdCount);
+
 		const int AxisIndex = ToIndex(Axis);
 		assert(AxisIndex >= 0 && AxisIndex < constants::AxisCount);
+
 		return BirdIndex * constants::AxisCount + AxisIndex;
 	}
 

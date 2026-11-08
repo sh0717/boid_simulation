@@ -68,10 +68,13 @@ void FSimulation::Reset(std::uint32_t Seed)
 {
 	RefreshInputsFromAbi();
 	State.ResetForBirdCount(Config.RequestedBirdCount);
+
 	Birds.Reset(Seed, CreateFlockContext());
 	Predator.Reset(Config.Bounds, Config.PredatorMaxSpeed);
+
 	SnapInterpolationState();
 	UpdateGoalFromCurrentState();
+
 	WriteFlockMetrics();
 	Abi.PublishResetState(State);
 }
@@ -84,6 +87,7 @@ void FSimulation::Step(double DeltaTime)
 
 	// 이동 전 위치를 보관하여 렌더링에서 이전·현재 위치를 보간할 수 있게 합니다.
 	Birds.SnapInterpolation();
+
 	// 시뮬레이션 시간과 목표 위상을 진행한 뒤 목표·포식자를 먼저 갱신합니다.
 	// 포식자는 이동 전 군집 위치를 읽고, 군집은 갱신된 목표·포식자 위치를 사용합니다.
 	State.AdvanceTime(DeltaTime, Config.bGoalEnabled, Config.GoalSpeedMultiplier);
@@ -103,6 +107,7 @@ void FSimulation::Step(double DeltaTime)
 
 	// 군집 갱신이 끝난 뒤 이번 스텝의 거리 검사 횟수를 상태에 기록합니다.
 	State.RecordNeighborDistanceChecks(NeighborDistanceChecks);
+
 	// 이동 후 군집 통계를 계산하고 시간·검사 횟수·통계를 ABI 상태 버퍼에 발행합니다.
 	// 위치·속도는 군집 소유 버퍼에 이미 기록되어 있으므로 여기서 다시 복사하지 않습니다.
 	WriteFlockMetrics();
@@ -135,6 +140,7 @@ void FSimulation::SnapInterpolation()
 {
 	RefreshInputsFromAbi();
 	SnapInterpolationState();
+
 	Abi.PublishGoalInterpolationState(State);
 }
 
@@ -149,6 +155,7 @@ void FSimulation::UpdateFlockMetrics()
 {
 	RefreshInputsFromAbi();
 	WriteFlockMetrics();
+
 	Abi.PublishFlockMetrics(State);
 }
 
@@ -179,11 +186,14 @@ void FSimulation::RefreshNeighborhoodCounts()
 void FSimulation::ReconcileObstacles()
 {
 	RefreshInputsFromAbi();
+
 	if (!Config.bObstaclesEnabled)
 	{
 		return;
 	}
+
 	Birds.ReconcileObstacles(CreateFlockContext());
+
 	WriteFlockMetrics();
 	Abi.PublishFlockMetrics(State);
 }
@@ -191,10 +201,12 @@ void FSimulation::ReconcileObstacles()
 void FSimulation::ReconcileBounds()
 {
 	RefreshInputsFromAbi();
+
 	if (Config.IsSoftBoundary())
 	{
 		return;
 	}
+
 	Birds.ReconcileBounds(CreateFlockContext());
 	Predator.ReconcileBounds(Config.Bounds);
 }

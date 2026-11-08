@@ -1,4 +1,5 @@
 #pragma once
+
 #include "core/Vector3D.h"
 
 // 군집 힘과 검사·이웃 수를 소유하는 내부 값 타입이며 C ABI 배열과는 독립입니다.

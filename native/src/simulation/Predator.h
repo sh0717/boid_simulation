@@ -1,4 +1,5 @@
 #pragma once
+
 #include "core/WorldBounds.h"
 #include "simulation/BirdVectorBuffer.h"
 

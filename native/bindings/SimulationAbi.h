@@ -1,8 +1,10 @@
 #pragma once
+
 #include "collision/ObstacleDescriptor.h"
 #include "core/SimulationConfig.h"
 #include "core/SimulationConstants.h"
 #include "simulation/SimulationState.h"
+
 #include <array>
 #include <boids/boids.h>
 

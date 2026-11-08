@@ -29,3 +29,9 @@ BreakBeforeBraces: Allman
 BreakConstructorInitializers: BeforeComma
 InsertBraces: true
 SeparateDefinitionBlocks: Always
+# Preserve one blank line between the logical stages written by the author.
+MaxEmptyLinesToKeep: 1
+KeepEmptyLines:
+  AtStartOfFile: false
+  AtStartOfBlock: false
+  AtEndOfFile: false

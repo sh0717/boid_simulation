@@ -1,4 +1,5 @@
 #include "simulation/NeighborSearch.h"
+
 #include <cassert>
 #include <numeric>
 
@@ -11,7 +12,9 @@ void FNeighborSearch::Rebuild(ESearchMethod Method, const FBirdVectorBuffer& Bir
 {
 	assert(BirdCount >= 0 && BirdCount <= constants::MaxBirdCount);
 	assert(BirdPositions.GetBirdCapacity() >= BirdCount);
+
 	SearchMethod = Method;
+
 	// 전수 탐색은 위치 인덱스 대신 활성 개체 전체 목록을 후보로 재사용합니다.
 	if (Method == ESearchMethod::AllPairs)
 	{
@@ -19,6 +22,7 @@ void FNeighborSearch::Rebuild(ESearchMethod Method, const FBirdVectorBuffer& Bir
 		std::iota(CandidateIndices.begin(), CandidateIndices.end(), 0);
 		return;
 	}
+
 	if (Method == ESearchMethod::KdTree)
 	{
 		KdTree.Rebuild(BirdPositions, BirdCount);
@@ -35,6 +39,7 @@ const std::vector<int>& FNeighborSearch::QueryCandidates(const FVector3D& QueryP
 	{
 		return CandidateIndices;
 	}
+
 	if (SearchMethod == ESearchMethod::KdTree)
 	{
 		KdTree.QueryCandidates(QueryPosition, QueryRadius, CandidateIndices);
@@ -43,5 +48,6 @@ const std::vector<int>& FNeighborSearch::QueryCandidates(const FVector3D& QueryP
 	{
 		Grid.QueryCandidates(QueryPosition, QueryRadius, CandidateIndices);
 	}
+
 	return CandidateIndices;
 }

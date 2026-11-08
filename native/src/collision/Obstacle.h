@@ -1,4 +1,5 @@
 #pragma once
+
 #include "collision/ObstacleDescriptor.h"
 
 // 장애물 중심을 소유하고 거리·법선과 회피 여유 거리의 공통 계약을 정의합니다.
