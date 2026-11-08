@@ -221,7 +221,49 @@ def buffers():
     d.save("algorithm-buffers.png")
 
 
+def core_algorithms():
+    d = Diagram(970, "군집의 움직임을 만드는 핵심 알고리즘", "응집·회피·목표·포식자의 영향을 조향으로 합성하고, 새 속도로 위치를 갱신합니다.")
+    cards = [
+        (64, "Cohesion / 응집", BLUE, "#EAF3FB", ["가시 이웃 평균점으로 이동", "응집: 평균점 - 내 위치", "정렬: 평균속도 - 내 속도"]),
+        (438, "Avoid / 회피", RED, "#FCEDE9", ["선택된 근접 이웃과 분리", "FOV 검사 전에 분리 누적", "예측점에서 장애물 회피"]),
+        (812, "Goal / 목표", TEAL, "#E8F6F2", ["이동 목표를 향해 유인", "목표 - 내 위치로 방향 결정", "가중치로 유인 강도 조절"]),
+        (1186, "Predator / 포식자", "#705399", "#F1ECF8", ["군집 중심을 추적", "반경 안의 개체는 도주", "회피 반경 경계에서 힘 0"]),
+    ]
+    for x, title, color, fill, lines in cards:
+        d.box((x, 164, x+350, 428), fill=fill, outline=fill)
+        d.text(x+18, 187, title, 29, color, True, max_width=316)
+        for index, line in enumerate(lines):
+            d.text(x+18, 263+index*49, line, 24, max_width=316)
+        d.arrow((x+175, 434), (x+175, 483), color, width=4, head=13)
+
+    d.draw.line((239, 490, 1361, 490), fill=BLUE, width=4)
+    d.arrow((800, 490), (800, 534), BLUE)
+    d.box((300, 540, 1300, 661), fill=WHITE, outline="#A8C9E3")
+    d.text(627, 552, "Steer / 조향 합성", 34, BLUE, True)
+    d.text(390, 608, "군집력 + 목표 유인 + 포식자 회피 + 장애물 회피", 28)
+    d.arrow((800, 666), (800, 704), BLUE)
+    d.draw.line((282, 710, 800, 710), fill=BLUE, width=4)
+    d.arrow((282, 710), (282, 742), BLUE, head=12, width=4)
+
+    d.box((64, 749, 500, 863), fill="#EAF3FB", outline="#BCD4E6")
+    d.text(88, 758, "가속도 크기 최대 16", 29, BLUE, True)
+    d.text(88, 815, "a = limit(Steer, 16)", 27)
+    d.arrow((505, 807), (571, 807), BLUE)
+    d.box((578, 749, 1014, 863), fill="#E8F6F2", outline="#B6DCD0")
+    d.text(602, 758, "속력 5~12로 제한", 29, TEAL, True)
+    d.text(602, 815, "v' = limitSpeed(v + a·dt)", 27, max_width=390)
+    d.arrow((1019, 807), (1085, 807), TEAL)
+    d.box((1092, 749, 1536, 863), fill=WHITE, outline=BORDER)
+    d.text(1116, 758, "새 속도로 위치 갱신", 29, BLUE, True)
+    d.text(1116, 815, "x' = x + v'·dt", 27)
+
+    d.text(66, 889, "보충: 힘 제한 전에 경계 조향을 혼합하고, 위치 갱신 뒤 장애물 침투·월드 경계를 보정합니다.", 25, MUTED)
+    d.text(66, 936, "현재 소스를 바탕으로 그린 핵심 알고리즘 개념도입니다. 실행 화면 캡처가 아닙니다.", 24, MUTED)
+    d.save("algorithm-core.png")
+
+
 if __name__ == "__main__":
     flow()
     neighborhood()
     buffers()
+    core_algorithms()
