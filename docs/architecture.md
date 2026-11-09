@@ -206,3 +206,6 @@ C++의 예외·RTTI는 비활성화합니다. 프로젝트별 자원 해제 방�
 
 
 C++ 파일의 공통 배치와 기존 경로의 이동 기준은 [native 내부 구조](native-layout.md)를 따릅니다.
+
+
+군집 전용 FBirdUpdateExecutor와 PBD가 공유하는 워커 수명·스케줄 구조는 [공통 실행기 설계](parallel-executor.md)를 따릅니다.

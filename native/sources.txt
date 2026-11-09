@@ -4,6 +4,7 @@ native/bindings/SimulationAbi.cpp
 native/src/simulation/SimulationState.cpp
 native/src/simulation/BirdFlock.cpp
 native/src/simulation/BirdUpdateExecutor.cpp
+native/src/simulation/ParallelExecutor.cpp
 native/src/simulation/Goal.cpp
 native/src/simulation/Predator.cpp
 native/src/simulation/NeighborSearch.cpp

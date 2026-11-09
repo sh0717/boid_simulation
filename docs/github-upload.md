@@ -22,6 +22,9 @@
 생성 파일은 `npm.cmd run build` 또는 `npm.cmd run build:all`로 갱신합니다.
 `dist/`, `wasm/`, `src/simulation/generated/`를 통째로 제외하면 실행 구성이 누락됩니다.
 
+공통 실행기는 각 저장소의 `native/src/simulation/ParallelExecutor.h/.cpp`에 직접 포함합니다.
+`docs/parallel-executor.md`는 공개 문서 허용 목록에 포함하며, 이웃 저장소나 별도 라이브러리 없이 빌드합니다.
+
 ## 로컬에 보관
 
 - SDK, `node_modules/`, `build/`, `artifacts/`, 실행 로그와 검사 캡처.

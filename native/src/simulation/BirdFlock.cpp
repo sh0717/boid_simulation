@@ -151,7 +151,7 @@ void FBirdFlock::CommitVelocitiesAndIntegratePositions(double DeltaTimeSeconds, 
 	std::swap(Velocities, NextVelocities);
 
 	// 각 작업은 자기 구간의 위치·속도만 수정하며, 모든 구간 완료 후 반환합니다.
-	const auto IntegrateRange = [this, &Context, DeltaTimeSeconds](int FirstBirdIndex, int EndBirdIndexExclusive)
+	const auto IntegrateRange = [this, &Context, DeltaTimeSeconds](int FirstBirdIndex, int EndBirdIndexExclusive) noexcept
 	{
 		for (int BirdIndex = FirstBirdIndex; BirdIndex < EndBirdIndexExclusive; ++BirdIndex)
 		{
@@ -430,7 +430,7 @@ void FBirdFlock::ReflectBirdVelocityFromObstacle(int BirdIndex, const FVector3D&
 void FBirdFlock::ReconcileObstacles(const FFlockContext& Context)
 {
 	// 장애물은 읽기만 공유합니다. 모든 구간의 보정 완료 후 이전 위치를 복사합니다.
-	const auto ReconcileRange = [this, &Context](int FirstBirdIndex, int EndBirdIndexExclusive)
+	const auto ReconcileRange = [this, &Context](int FirstBirdIndex, int EndBirdIndexExclusive) noexcept
 	{
 		for (int BirdIndex = FirstBirdIndex; BirdIndex < EndBirdIndexExclusive; ++BirdIndex)
 		{
@@ -564,7 +564,7 @@ void FBirdFlock::AccumulateBoundaryTangentForce(const FVector3D& InwardNormal, d
 void FBirdFlock::ReconcileBounds(const FFlockContext& Context)
 {
 	// 서로 다른 개체는 독립이며, 한 개체의 경계 → 장애물 → 경계 보정 순서는 유지합니다.
-	const auto ReconcileRange = [this, &Context](int FirstBirdIndex, int EndBirdIndexExclusive)
+	const auto ReconcileRange = [this, &Context](int FirstBirdIndex, int EndBirdIndexExclusive) noexcept
 	{
 		for (int BirdIndex = FirstBirdIndex; BirdIndex < EndBirdIndexExclusive; ++BirdIndex)
 		{

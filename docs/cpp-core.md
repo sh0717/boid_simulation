@@ -53,108 +53,42 @@ npm run test:exe
 
 ## 네이티브 개체 병렬 갱신
 
-네이티브 CMake 빌드는 `BOIDS_ENABLE_THREADS=ON`이 기본이며 `Threads::Threads`를 연결합니다.
-`FBirdFlock`이 소유한 `FBirdUpdateExecutor`는 `std::thread` 워커를 첫 병렬 작업에 생성하고
-재사용합니다. 워커 상한은 3개이며 하드웨어 동시성에서 호출 스레드 하나를 제외한 수로 제한합니다.
-호출 스레드도 한 구간을 처리하므로 최대 4개 실행 스레드가 참여합니다. 동시성 정보가 없거나
-사용 가능한 워커가 없으면 직렬 실행합니다.
+Boids와 PBD는 동일한 [공통 실행기 구조](parallel-executor.md)를 사용합니다.
+공통 구현은 각 저장소의 `native/src/simulation/ParallelExecutor.h/.cpp`에 두며,
+이웃 프로젝트를 include하거나 링크하지 않습니다.
 
-화면 하단의 `워커 N개`는 `boids_get_worker_thread_count()`로 코어에서 읽습니다.
-최근 완료한 위치 적분·장애물·경계 보정 구간에 실제 참여한 워커 수이며 호출 스레드는 제외합니다.
-워커 풀의 전체 크기나 순간 CPU 점유 스레드 수를 뜻하지 않습니다. 작업 전·빈 작업·직렬 실행은
-0이며 일시정지 중에는 최근 값을 유지합니다. 현재 웹·Electron EXE는 Wasm이므로
-`워커 0개 · 단일 스레드`를 표시합니다. C ABI의 기존 설정·상태 슬롯과 메모리 계약은 유지합니다.
+`FBirdFlock`의 마지막 멤버 `FBirdUpdateExecutor`는 군집 전용 어댑터입니다.
+기존 `ExecuteBirdRangesAndWait(int, const Task&)`와 `GetLastExecutionWorkerCount()`를
+유지하고 공통 `FParallelExecutor`에 `FixedRanges` 정책으로 위임합니다.
+실행기만 워커·작업 게시·완료 대기·종료를 소유하며 군집 계산식은 알지 못합니다.
 
-개체 수가 2개 이상이고 워커를 사용할 수 있으면 기본 병렬 실행합니다. 이전의 256개 임계값은
-제거했습니다. 개체 0개는 작업 없이 반환하고 1개는 호출 스레드에서 실행합니다. 구간 수는
-`min(개체 수, 워커 수 + 1)`이며 이번 작업에 배정되지 않은 워커는 다시 대기합니다.
-이 정책은 작은 군집에서도 병렬 동작을 명시적으로 사용하기 위한 것으로, 성능 향상을 측정한 결과는 아닙니다.
+네이티브 CMake는 `BOIDS_ENABLE_THREADS=ON`이 기본이며
+`PARALLEL_EXECUTOR_ENABLE_THREADS=1`과 `Threads::Threads`를 전달합니다.
+개체 2개 이상이면 최대 3개 워커와 호출 스레드가 겹치지 않는 연속 구간을 처리합니다.
+워커 상한은 하드웨어 동시성에서 호출 스레드 하나를 제외한 수입니다.
+첫 병렬 호출에서 워커를 생성하고 이후 재사용합니다. 0개는 콜백 없이 반환하며
+1개·워커 상한 0·스레드 비활성·동시성 정보 없음은 호출 스레드에서 처리합니다.
 
-병렬 대상은 `CommitVelocitiesAndIntegratePositions`, `ReconcileObstacles`, `ReconcileBounds`의
-개체별 반복문입니다. 속도 역할 교체는 작업 배포 전에 한 번만 수행하며, 한 개체 내부의 축·장애물
-계산 순서는 유지합니다. 이웃 조회·다음 속도 계산·난수·통계 합산은 기존 직렬 순서를 유지합니다.
+병렬 대상은 `CommitVelocitiesAndIntegratePositions`, `ReconcileObstacles`,
+`ReconcileBounds`의 개체별 반복문입니다. 속도 역할을 게시 전에 한 번 교체하고,
+각 개체 내부 축·장애물 순서와 이웃 조회·다음 속도·난수·통계의 직렬 순서를 유지합니다.
+모든 작업 완료 뒤 반환하므로 통계·ABI 발행은 워커 쓰기와 겹치지 않습니다.
 
-각 작업은 겹치지 않는 연속 인덱스 구간만 수정합니다. 설정·장애물은 읽기만 공유하며
-`condition_variable`의 조건식과 세대 번호로 작업 전달과 완료 대기를 관리합니다. 함수가 반환할 때
-모든 워커의 쓰기가 완료되어 있으므로 이후 보간 복사·통계·ABI 발행과 겹치지 않습니다.
-같은 군집에 대한 중첩·동시 명령과 실행 중 외부 ABI 버퍼 쓰기는 지원하지 않습니다.
+화면의 `워커 N개`는 최근 완료한 고정 구간에 배정된 워커 수이며 호출 스레드를 제외합니다.
+생성된 풀 크기나 순간 CPU 점유 스레드 수를 뜻하지 않습니다.
+빈 작업·직렬·작업 전은 0이며 일시정지 중에는 최근 값을 유지합니다.
+동일 군집의 중첩·동시 명령과 실행 중 외부 ABI 버퍼 쓰기는 금지합니다.
+콜백과 캡처는 동기 호출 동안만 빌리며 예외를 던지지 않아야 합니다.
 
-실행기는 군집의 마지막 멤버로 두어 가장 먼저 소멸합니다. 소멸자는 종료 상태를 설정하고 대기 중인
-워커를 깨운 뒤 모두 `join()`하므로 군집 버퍼보다 워커가 먼저 정리됩니다. 작업 콜백과 캡처는 동기
-호출 동안만 빌리며 작업별 동적 할당은 하지 않습니다. 콜백은 예외를 던지지 않아야 합니다.
+웹·Electron Wasm은 같은 코드를 직렬 컴파일합니다. ABI v1·고정 2 MiB·외부 import 없음·
+예외와 RTTI 비활성 계약을 유지하므로 공유 메모리나 브라우저 Worker를 요구하지 않습니다.
+PBD의 pthread Wasm과 실행 조건이 다르며 구조 통일은 이 환경 계약을 바꾸지 않습니다.
 
-직렬 기준선은 `FBirdFlock(0)`으로 만들 수 있습니다. 전체 네이티브 스레드 경로를 제외하려면
-별도 빌드 디렉터리에서 `cmake -S . -B build/native-serial -DBOIDS_ENABLE_THREADS=OFF`로 구성합니다.
-`native-parallel-bird-updates` CTest는 구간별 정확히 한 번 실행, 빈 구간 배제, 2·3·32개 개체의
-기본 병렬 실행, 실제 작업 스레드 재사용, 워커 상한 0의 명시적 직렬 실행, 서로 다른 실행기의
-동시 실행과 종료, 162개 직렬·병렬 군집 시나리오의 전체 ABI 버퍼 일치를 검사합니다.
-
-Wasm은 이 스레드 경로를 컴파일하지 않고 같은 구간 함수를 직렬 실행합니다. ABI v1·고정 2 MiB·
-외부 import 없음 계약을 유지하며 웹/Electron에 스레드 생성이나 공유 메모리 요구를 추가하지 않습니다.
-
-### 실행기 이름과 작업 전달
-
-`FBirdFlock`은 개체별 계산을 담은 람다를 만들고 마지막 멤버인 `BirdUpdateExecutor`에
-빌려줍니다. 실행기는 계산식이나 군집 버퍼를 소유하지 않으며 구간 분배·작업 통지·완료 대기만 담당합니다.
-
-| 이름 | 책임 |
-| --- | --- |
-| `ExecuteBirdRangesAndWait` | 람다를 받아 전체 구간이 끝날 때까지 기다리는 공개 진입점 |
-| `FBirdUpdateBatch` | 한 호출의 콜백 대여·개체 수·구간 수를 묶은 내부 작업 정보 |
-| `FBirdUpdateBatch::ExecuteRange` | 구간 번호를 반열린 인덱스 범위로 변환하고 콜백 실행 |
-| `ExecuteBatchAndWait` | 빈 작업·직렬·병렬 선택과 호출 스레드 실행·완료 대기 조율 |
-| `PublishBatch` | 잠금 아래 작업 정보 게시·순번 갱신 후 워커 깨우기 |
-| `WaitForWorkersAndClearBatch` | 배정 워커 완료 대기 후 공유 작업의 콜백 대여 해제 |
-| `RunWorkerLoop` | 새 작업 대기 → 배정 구간 실행 → 완료 보고 반복 |
-| `BorrowedRangeTaskObject` / `InvokeRangeTask` | 콜백 객체의 비소유 주소 / 원래 타입으로 복원해 호출하는 함수 |
-| `StartWorkerThreadsIfNeeded` | 첫 병렬 호출에서만 워커 풀 생성 |
-| `ActiveBatch` | 워커에게 게시된 작업 정보. 워커는 잠금 아래 복사하여 계산 중 사용 |
-| `PublishedBatchSequence` | 새 작업을 구별하는 순번 |
-| `RemainingWorkerCount` | 아직 끝나지 않은 배정 워커 수. 호출 스레드는 제외 |
-
-공개 호출 형식과 직렬·병렬 선택 정책은 유지합니다. 내부 조율은
-`PublishBatch(Batch)` → `Batch.ExecuteRange(0)` → `WaitForWorkersAndClearBatch()` 순서입니다.
-호출 스레드와 워커가 같은 `ExecuteRange`를 사용하므로 구간 분할 공식은 한 곳에만 둡니다.
-
-예를 들어 `IntegrateRange`는 `this`, `DeltaTimeSeconds`, `FFlockContext`의 참조를 캡처한
-람다 객체입니다. `BorrowedRangeTaskObject`는 이 람다 객체의 주소이며 `FFlockContext`의 주소가 아닙니다.
-`InvokeRangeTask`는 캡처가 없는 람다에서 변환된 함수 포인터입니다. 아래의 두 값은 한 쌍으로 동작합니다.
-
-```cpp
-const RangeTaskType& OriginalRangeTask = *static_cast<const RangeTaskType*>(BorrowedRangeTaskObject);
-OriginalRangeTask(FirstBirdIndex, EndBirdIndexExclusive);
-```
-
-캡처가 있는 람다는 일반 함수 포인터로 직접 바꿀 수 없으므로 객체 주소와 호출 함수를 나눕니다.
-템플릿 진입점에서 정확한 타입을 알고 호출 함수를 만들고, `.cpp`의 비템플릿 실행기는 타입을
-몰라도 이 쌍을 전달할 수 있습니다. `std::function`으로 람다를 복사·소유하지 않고 호출 동안만 빌립니다.
-
-```mermaid
-sequenceDiagram
-    participant C as 호출 스레드 / FBirdFlock
-    participant E as FBirdUpdateExecutor
-    participant W as 워커 스레드
-    C->>E: ExecuteBirdRangesAndWait(개체 수, 계산 람다)
-    Note over E: 필요 시 워커 생성, 작업 정보 저장, 작업 순번 증가
-    E->>W: BatchPublishedCondition.notify_all()
-    par 호출 스레드의 구간
-        E->>E: 0번 구간의 람다 실행
-    and 배정된 워커의 구간
-        W->>W: 작업 순번 확인, 자기 구간의 람다 실행
-        W->>E: RemainingWorkerCount 감소
-    end
-    Note over E: 모든 배정 워커 완료까지 대기
-    E-->>C: 람다 대여 해제 후 반환
-```
-
-개체 8개와 참여 스레드 4개라면 호출 스레드는 `[0, 2)`, 워커는 각각 `[2, 4)`, `[4, 6)`,
-`[6, 8)`을 처리합니다. 구간 끝 인덱스는 포함하지 않습니다. `BatchStateMutex`는 작업 게시·읽기와
-완료 수를 보호합니다. 개체 계산 중에는 잠그지 않으며 서로 겹치지 않는 개체 저장소만 수정합니다.
-
-`PublishedBatchSequence`와 각 워커의 `LastObservedBatchSequence`를 비교하므로 통지가 먼저
-발생하거나 대기에서 깨어나도 같은 작업을 중복 실행하지 않습니다. `RemainingWorkerCount`가
-0이 되면 호출 스레드가 `ActiveBatch`를 초기화하고 반환합니다. 따라서 스택 람다와 캡처한 참조는 작업이
-끝날 때까지 살아 있습니다. 소멸자는 종료를 요청하고 워커를 깨운 뒤 `join()`합니다.
+`native-parallel-bird-updates`는 범위 커버리지·완료·워커 재사용·종료·명시적 직렬,
+162개 native 군집 시나리오의 ABI 버퍼 bitwise 일치와
+공통 실행기의 두 스케줄·복사 불가 콜백 대여·큰 `size_t` 범위를 검사합니다.
+`BOIDS_ENABLE_THREADS=OFF`는 별도 CMake 빌드 폴더에서 검사합니다.
+구조 통일 자체를 성능 향상의 측정 결과로 해석하지 않습니다.
 
 ## 메모리 계약
 

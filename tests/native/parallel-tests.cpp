@@ -5,12 +5,174 @@
 #include <atomic>
 #include <cstring>
 #include <iostream>
+#include <limits>
+#include <mutex>
 #include <set>
 #include <thread>
 #include <vector>
 
 namespace
 {
+
+	// 선언의 제약을 검사합니다. 본문 안의 static_assert만으로는 잘못된 호출이 여기서 거부되지 않습니다.
+	template <typename TaskType>
+	concept CAcceptsRangeTask = requires(FParallelExecutor& Executor, const TaskType& Task) {
+		Executor.ExecuteRangesAndWait(1, Task);
+	};
+
+	template <typename TaskType>
+	concept CAcceptsIndexTask = requires(FParallelExecutor& Executor, const TaskType& Task) {
+		Executor.Run(1, Task);
+	};
+
+	using FValidRangeTask = decltype([](std::size_t, std::size_t) noexcept
+	{
+	});
+	using FValidIndexTask = decltype([](std::size_t) noexcept
+	{
+	});
+	using FThrowingRangeTask = decltype([](std::size_t, std::size_t)
+	{
+	});
+	using FThrowingIndexTask = decltype([](std::size_t)
+	{
+	});
+	using FMutableTask = decltype([Count = 0](auto...) mutable noexcept
+	{
+		++Count;
+	});
+	using FValueReturningTask = decltype([](auto...) noexcept
+	{
+		return 1;
+	});
+	using FRvalueOnlyTask = decltype([](std::size_t&&, auto&&...) noexcept
+	{
+	});
+
+	struct FVolatileTask
+	{
+		void operator()(...) const volatile noexcept {}
+	};
+
+	using FRawRangeTask = void(std::size_t, std::size_t) noexcept;
+	using FRawIndexTask = void(std::size_t) noexcept;
+
+	static_assert(CAcceptsRangeTask<FValidRangeTask> && CAcceptsIndexTask<FValidIndexTask>);
+	static_assert(!CAcceptsRangeTask<FValidIndexTask> && !CAcceptsIndexTask<FValidRangeTask>);
+	static_assert(!CAcceptsRangeTask<FThrowingRangeTask> && !CAcceptsIndexTask<FThrowingIndexTask>);
+	static_assert(!CAcceptsRangeTask<FMutableTask> && !CAcceptsIndexTask<FMutableTask>);
+	static_assert(!CAcceptsRangeTask<FValueReturningTask> && !CAcceptsIndexTask<FValueReturningTask>);
+	static_assert(!CAcceptsRangeTask<FRvalueOnlyTask> && !CAcceptsIndexTask<FRvalueOnlyTask>);
+	static_assert(!CAcceptsRangeTask<volatile FVolatileTask> && !CAcceptsIndexTask<volatile FVolatileTask>);
+	static_assert(!CAcceptsRangeTask<int> && !CAcceptsIndexTask<int>);
+	static_assert(!CAcceptsRangeTask<FRawRangeTask> && !CAcceptsIndexTask<FRawIndexTask>);
+	static_assert(CAcceptsRangeTask<FRawRangeTask*> && CAcceptsIndexTask<FRawIndexTask*>);
+
+	template <typename TaskType>
+	concept CAcceptsBirdRangeTask = requires(FBirdUpdateExecutor& Executor, const TaskType& Task) {
+		Executor.ExecuteBirdRangesAndWait(1, Task);
+	};
+
+	static_assert(CAcceptsBirdRangeTask<decltype([](int, int) noexcept
+	{
+	})>);
+	static_assert(!CAcceptsBirdRangeTask<decltype([](int, int)
+	{
+	})>);
+	static_assert(!CAcceptsBirdRangeTask<FMutableTask>);
+	static_assert(!CAcceptsBirdRangeTask<FValueReturningTask>);
+	static_assert(!CAcceptsBirdRangeTask<FValidIndexTask>);
+	static_assert(!CAcceptsBirdRangeTask<decltype([](int&, int&) noexcept
+	{
+	})>);
+	static_assert(CAcceptsBirdRangeTask<decltype([](int&&, int&&) noexcept
+	{
+	})>);
+
+	struct FNonCopyableRangeTask
+	{
+		explicit FNonCopyableRangeTask(std::vector<std::atomic<int>>& InVisits)
+			: Visits(InVisits)
+		{
+		}
+
+		FNonCopyableRangeTask(const FNonCopyableRangeTask&) = delete;
+
+		FNonCopyableRangeTask& operator=(const FNonCopyableRangeTask&) = delete;
+
+		void operator()(std::size_t First, std::size_t End) const noexcept
+		{
+			for (std::size_t Index = First; Index < End; ++Index)
+			{
+				Visits[Index].fetch_add(1);
+			}
+		}
+
+		// 호출 동안만 빌리는 독립 인덱스의 방문 횟수 저장소입니다.
+		std::vector<std::atomic<int>>& Visits;
+	};
+
+	static_assert(CAcceptsRangeTask<FNonCopyableRangeTask>);
+
+	bool SharedExecutorContracts()
+	{
+		FParallelExecutor Executor;
+		std::vector<std::atomic<int>> Visits(19);
+		const FNonCopyableRangeTask Task(Visits);
+		for (EParallelSchedule Schedule : {EParallelSchedule::FixedRanges, EParallelSchedule::DynamicIndices})
+		{
+			Executor.ExecuteRangesAndWait(Visits.size(), Task, Schedule);
+		}
+		Executor.Run(Visits.size(), [&Visits](std::size_t Index) noexcept
+		{
+			Visits[Index].fetch_add(1);
+		});
+		for (const std::atomic<int>& Visit : Visits)
+		{
+			if (Visit.load() != 3)
+			{
+				return false;
+			}
+		}
+
+		// 큰 size_t 범위를 실제 순회하지 않고 분할 끝값의 오버플로와 빈 구간을 검사합니다.
+		using FIndexRange = std::array<std::size_t, 2>;
+		std::vector<FIndexRange> Ranges;
+		std::mutex RangesMutex;
+		const std::size_t Count = std::numeric_limits<std::size_t>::max();
+		Executor.ExecuteRangesAndWait(Count, [&Ranges, &RangesMutex](std::size_t First, std::size_t End) noexcept
+		{
+			const std::lock_guard<std::mutex> Lock(RangesMutex);
+			Ranges.push_back({First, End});
+		});
+		std::sort(Ranges.begin(), Ranges.end());
+		std::size_t PreviousEnd = 0;
+		for (const FIndexRange& Range : Ranges)
+		{
+			if (Range[0] != PreviousEnd || Range[0] >= Range[1])
+			{
+				return false;
+			}
+			PreviousEnd = Range[1];
+		}
+		if (PreviousEnd != Count)
+		{
+			return false;
+		}
+
+		std::size_t EmptyCalls = 0;
+		Executor.Run(0, [&EmptyCalls](std::size_t) noexcept
+		{
+			++EmptyCalls;
+		});
+		if (EmptyCalls != 0 || Executor.GetLastExecutionWorkerCount() != 0)
+		{
+			return false;
+		}
+		std::cout << "PASS: shared fixed/dynamic scheduler coverage, borrowed noncopyable tasks, size_t range bounds and empty telemetry\n";
+		return true;
+	}
+
 	bool ExecutorCoverageAndReuse()
 	{
 		FBirdUpdateExecutor Executor;
@@ -31,7 +193,7 @@ namespace
 				std::vector<std::thread::id> ThreadIds(constants::MaxBirdCount);
 				std::atomic<int> RangeCalls{0};
 				std::atomic<bool> bInvalidRange{false};
-				Executor.ExecuteBirdRangesAndWait(Count, [&RangeCalls, &bInvalidRange, &Visits, &ThreadIds, Count](int FirstBirdIndex, int EndBirdIndexExclusive)
+				Executor.ExecuteBirdRangesAndWait(Count, [&RangeCalls, &bInvalidRange, &Visits, &ThreadIds, Count](int FirstBirdIndex, int EndBirdIndexExclusive) noexcept
 				{
 					RangeCalls.fetch_add(1);
 					if (FirstBirdIndex < 0 || FirstBirdIndex >= EndBirdIndexExclusive || EndBirdIndexExclusive > Count)
@@ -95,7 +257,7 @@ namespace
 			int RangeCallCount = 0;
 			bool bExpectedCallerRange = true;
 			const std::thread::id CallerThreadId = std::this_thread::get_id();
-			SerialExecutor.ExecuteBirdRangesAndWait(Count, [&RangeCallCount, &bExpectedCallerRange, CallerThreadId, Count](int FirstBirdIndex, int EndBirdIndexExclusive)
+			SerialExecutor.ExecuteBirdRangesAndWait(Count, [&RangeCallCount, &bExpectedCallerRange, CallerThreadId, Count](int FirstBirdIndex, int EndBirdIndexExclusive) noexcept
 			{
 				++RangeCallCount;
 				bExpectedCallerRange = bExpectedCallerRange && std::this_thread::get_id() == CallerThreadId && FirstBirdIndex == 0 && EndBirdIndexExclusive == Count;
@@ -109,6 +271,21 @@ namespace
 		return true;
 	}
 
+	bool ReleaseNegativeCountGuard()
+	{
+#if defined(NDEBUG)
+		FBirdUpdateExecutor Executor;
+		int Calls = 0;
+		Executor.ExecuteBirdRangesAndWait(-1, [&Calls](int, int) noexcept
+		{
+			++Calls;
+		});
+		return Calls == 0 && Executor.GetLastExecutionWorkerCount() == 0;
+#else
+		return true;
+#endif
+	}
+
 	bool ExecutorIsolationAndShutdown()
 	{
 		for (int Repeat = 0; Repeat < 8; ++Repeat)
@@ -118,7 +295,7 @@ namespace
 			std::thread FirstCaller([&First]
 			{
 				FBirdUpdateExecutor Executor;
-				Executor.ExecuteBirdRangesAndWait(1200, [&First](int Begin, int End)
+				Executor.ExecuteBirdRangesAndWait(1200, [&First](int Begin, int End) noexcept
 				{
 					std::fill(First.begin() + Begin, First.begin() + End, 7);
 				});
@@ -126,7 +303,7 @@ namespace
 			std::thread SecondCaller([&Second]
 			{
 				FBirdUpdateExecutor Executor;
-				Executor.ExecuteBirdRangesAndWait(1200, [&Second](int Begin, int End)
+				Executor.ExecuteBirdRangesAndWait(1200, [&Second](int Begin, int End) noexcept
 				{
 					std::fill(Second.begin() + Begin, Second.begin() + End, 11);
 				});
@@ -258,7 +435,7 @@ namespace
 
 int main()
 {
-	if (!ExecutorCoverageAndReuse() || !ExplicitSerialWorkerLimit() || !ExecutorIsolationAndShutdown())
+	if (!SharedExecutorContracts() || !ExecutorCoverageAndReuse() || !ExplicitSerialWorkerLimit() || !ReleaseNegativeCountGuard() || !ExecutorIsolationAndShutdown())
 	{
 		std::cerr << "FAIL: worker coverage, completion, reuse, isolation or shutdown\n";
 		return 1;

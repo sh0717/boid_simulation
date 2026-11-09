@@ -45,6 +45,7 @@ Boids-Lab.local.code-workspace
 !/docs/github-upload.md
 !/docs/native-layout.md
 !/docs/neighbor-search.md
+!/docs/parallel-executor.md
 !/docs/performance.md
 !/docs/project-conventions.md
 !/docs/project-layout.md

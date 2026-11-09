@@ -27,7 +27,9 @@ option(BOIDS_ENABLE_THREADS "Parallelize independent native bird updates with st
 if(BOIDS_ENABLE_THREADS AND NOT EMSCRIPTEN)
   find_package(Threads REQUIRED)
   target_link_libraries(boids_core PRIVATE Threads::Threads)
-  target_compile_definitions(boids_core PUBLIC BOIDS_ENABLE_THREADS=1)
+  target_compile_definitions(boids_core PUBLIC BOIDS_ENABLE_THREADS=1 PARALLEL_EXECUTOR_ENABLE_THREADS=1)
+else()
+  target_compile_definitions(boids_core PUBLIC PARALLEL_EXECUTOR_ENABLE_THREADS=0)
 endif()
 
 set(boids_targets boids_core)
